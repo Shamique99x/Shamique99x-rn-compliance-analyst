@@ -211,9 +211,9 @@ ${iosContent}`;
     raw = block.text.trim();
   } else if (geminiKey) {
     // Fall back to Gemini
-    console.log("  Using Gemini (gemini-1.5-flash)...");
+    console.log("  Using Gemini (gemini-2.0-flash)...");
     const genAI = new GoogleGenerativeAI(geminiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
     const result = await model.generateContent(prompt);
     raw = result.response.text().trim();
   } else {
