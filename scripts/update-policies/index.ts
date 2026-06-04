@@ -167,9 +167,9 @@ async function extractThresholds(
 
   const prompt = `You are a mobile app policy analyst. Extract the current minimum version requirements for React Native apps publishing to the Google Play Store and Apple App Store.
 
-Return ONLY a valid JSON object — no explanation, no markdown, no code fences.
+CRITICAL INSTRUCTION: Your entire response must be a single raw JSON object. No markdown, no bullet points, no explanation text, no code fences, no backticks. Start your response with { and end with }. Nothing before the opening brace, nothing after the closing brace.
 
-Fields (use null if a value is not explicitly stated in the docs):
+Use this exact shape (use null for any field not explicitly stated in the docs):
 {
   "android_target_sdk_min": <integer — Google Play minimum targetSdkVersion API level>,
   "android_compile_sdk_min": <integer — minimum compileSdkVersion>,
@@ -274,11 +274,17 @@ ${iosContent}`;
     );
   }
 
-  const json = raw.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
+  // Strip code fences first, then extract the outermost {...} block.
+  // This tolerates models that wrap JSON in markdown prose despite instructions.
+  const stripped = raw.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
+  const match = stripped.match(/\{[\s\S]*\}/);
+  if (!match) {
+    throw new Error(`AI returned non-JSON response:\n${raw.slice(0, 500)}`);
+  }
   try {
-    return JSON.parse(json) as PolicyThresholds;
+    return JSON.parse(match[0]) as PolicyThresholds;
   } catch {
-    throw new Error(`AI returned non-JSON response:\n${raw}`);
+    throw new Error(`AI returned malformed JSON:\n${match[0].slice(0, 500)}`);
   }
 }
 
