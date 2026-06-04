@@ -190,10 +190,14 @@ ${iosContent}`;
 
   let raw: string;
 
-  if (process.env.ANTHROPIC_API_KEY) {
+  // Trim keys — GitHub Actions sets unset secrets to "" not undefined
+  const anthropicKey = process.env.ANTHROPIC_API_KEY?.trim();
+  const geminiKey    = process.env.GEMINI_API_KEY?.trim();
+
+  if (anthropicKey) {
     // Prefer Anthropic if key is available
     console.log("  Using Anthropic (claude-sonnet-4-5)...");
-    const client = new Anthropic();
+    const client = new Anthropic({ apiKey: anthropicKey });
     const message = await client.messages.create({
       model: "claude-sonnet-4-5",
       max_tokens: 1024,
@@ -202,16 +206,16 @@ ${iosContent}`;
     const block = message.content[0];
     if (!block || block.type !== "text") throw new Error("Unexpected Anthropic response shape");
     raw = block.text.trim();
-  } else if (process.env.GEMINI_API_KEY) {
+  } else if (geminiKey) {
     // Fall back to Gemini
     console.log("  Using Gemini (gemini-1.5-flash)...");
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const genAI = new GoogleGenerativeAI(geminiKey);
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
     const result = await model.generateContent(prompt);
     raw = result.response.text().trim();
   } else {
     throw new Error(
-      "No AI API key found. Set either ANTHROPIC_API_KEY or GEMINI_API_KEY environment variable."
+      "No AI API key found. Set either ANTHROPIC_API_KEY or GEMINI_API_KEY in repository secrets."
     );
   }
 
@@ -373,7 +377,7 @@ async function main() {
     throw new Error("All page fetches failed — cannot update policies safely");
   }
 
-  const aiProvider = process.env.ANTHROPIC_API_KEY ? "Anthropic" : process.env.GEMINI_API_KEY ? "Gemini" : "none";
+  const aiProvider = process.env.ANTHROPIC_API_KEY?.trim() ? "Anthropic" : process.env.GEMINI_API_KEY?.trim() ? "Gemini" : "none";
   console.log(`\nExtracting thresholds (provider: ${aiProvider})...`);
   const thresholds = await extractThresholds(validAndroid, validIos);
 
