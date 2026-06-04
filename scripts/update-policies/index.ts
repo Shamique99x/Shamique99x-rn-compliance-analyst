@@ -12,7 +12,6 @@
  *   POLICIES_DIR           path to mcp-server/policies/ (defaults to ../../mcp-server/policies)
  */
 
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import Anthropic from "@anthropic-ai/sdk";
 import * as fs from "fs";
 import * as https from "https";
@@ -210,12 +209,29 @@ ${iosContent}`;
     if (!block || block.type !== "text") throw new Error("Unexpected Anthropic response shape");
     raw = block.text.trim();
   } else if (geminiKey) {
-    // Fall back to Gemini
-    console.log("  Using Gemini (gemini-2.0-flash)...");
-    const genAI = new GoogleGenerativeAI(geminiKey, { apiVersion: "v1" } as never);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-    const result = await model.generateContent(prompt);
-    raw = result.response.text().trim();
+    // Fall back to Gemini — call v1 REST API directly (SDK defaults to v1beta which
+    // doesn't expose gemini-1.5-flash; native fetch avoids that entirely)
+    console.log("  Using Gemini (gemini-1.5-flash, v1 REST)...");
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+          generationConfig: { maxOutputTokens: 1024 },
+        }),
+      }
+    );
+    if (!res.ok) {
+      const errBody = await res.text();
+      throw new Error(`Gemini API error ${res.status}: ${errBody}`);
+    }
+    const data = await res.json() as {
+      candidates: Array<{ content: { parts: Array<{ text: string }> } }>;
+    };
+    raw = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "";
+    if (!raw) throw new Error("Empty response from Gemini v1 API");
   } else {
     throw new Error(
       "No AI API key found. Set either ANTHROPIC_API_KEY or GEMINI_API_KEY in repository secrets."
