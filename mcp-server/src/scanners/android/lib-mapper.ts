@@ -139,24 +139,33 @@ ${soNames.map((n) => `  - ${n}`).join("\n")}`;
       if (!block || block.type !== "text") return [];
       raw = block.text.trim();
     } else {
-      // Call v1 REST API directly — SDK defaults to v1beta which doesn't expose
-      // gemini-1.5-flash; native fetch lets us target v1 without SDK gymnastics.
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ role: "user", parts: [{ text: prompt }] }],
-            generationConfig: { maxOutputTokens: 1024 },
-          }),
-        }
-      );
-      if (!res.ok) return [];
-      const data = await res.json() as {
-        candidates: Array<{ content: { parts: Array<{ text: string }> } }>;
-      };
-      raw = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "";
+      // Call Gemini REST API — auth via X-goog-api-key header.
+      // Try models in order until one succeeds.
+      const GEMINI_MODELS = ["gemini-flash-latest", "gemini-2.0-flash", "gemini-2.0-flash-lite"];
+      raw = "";
+      for (const modelName of GEMINI_MODELS) {
+        const res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-goog-api-key": process.env.GEMINI_API_KEY!,
+            },
+            body: JSON.stringify({
+              contents: [{ role: "user", parts: [{ text: prompt }] }],
+              generationConfig: { maxOutputTokens: 1024 },
+            }),
+          }
+        );
+        if (!res.ok) continue;
+        const data = await res.json() as {
+          candidates: Array<{ content: { parts: Array<{ text: string }> } }>;
+        };
+        raw = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "";
+        if (raw) break;
+      }
+      if (!raw) return [];
     }
 
     const json = raw.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");

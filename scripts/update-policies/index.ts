@@ -214,11 +214,13 @@ ${iosContent}`;
     // Note: if ALL models return quota/404 errors your Google Cloud project likely
     // needs billing enabled even for free-tier usage — see:
     // https://aistudio.google.com/apikey → click project → Enable billing
+    // Try models in order — gemini-flash-latest is the stable free-tier alias.
+    // Auth via X-goog-api-key header (more reliable than ?key= query param).
     const GEMINI_MODELS = [
+      "gemini-flash-latest",
       "gemini-2.0-flash",
       "gemini-2.0-flash-lite",
       "gemini-1.5-flash",
-      "gemini-1.5-flash-8b",
     ];
 
     let lastError = "";
@@ -227,10 +229,13 @@ ${iosContent}`;
     for (const modelName of GEMINI_MODELS) {
       console.log(`  Trying Gemini model: ${modelName}...`);
       const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${geminiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "X-goog-api-key": geminiKey,
+          },
           body: JSON.stringify({
             contents: [{ role: "user", parts: [{ text: prompt }] }],
             generationConfig: { maxOutputTokens: 1024 },
