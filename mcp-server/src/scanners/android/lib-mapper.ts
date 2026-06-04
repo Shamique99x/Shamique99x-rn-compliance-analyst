@@ -154,7 +154,7 @@ ${soNames.map((n) => `  - ${n}`).join("\n")}`;
             },
             body: JSON.stringify({
               contents: [{ role: "user", parts: [{ text: prompt }] }],
-              generationConfig: { maxOutputTokens: 1024 },
+              generationConfig: { maxOutputTokens: 2048 },
             }),
           }
         );
