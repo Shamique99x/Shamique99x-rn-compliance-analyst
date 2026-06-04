@@ -8,7 +8,8 @@
         "POLICIES_DIR": "${CLAUDE_PLUGIN_ROOT}/mcp-server/policies",
         "PLUGIN_CACHE_DIR": "${CLAUDE_PLUGIN_DATA}/policy-cache",
         "POLICIES_REMOTE_URL": "https://raw.githubusercontent.com/Shamique99x/claude-rn-compliance/main/mcp-server/policies",
-        "ANTHROPIC_API_KEY": "${user_config.anthropic_api_key}"
+        "ANTHROPIC_API_KEY": "${user_config.anthropic_api_key}",
+        "GEMINI_API_KEY": "${user_config.gemini_api_key}"
       }
     }
   }

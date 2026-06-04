@@ -12,6 +12,7 @@
  *   POLICIES_DIR           path to mcp-server/policies/ (defaults to ../../mcp-server/policies)
  */
 
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import Anthropic from "@anthropic-ai/sdk";
 import * as fs from "fs";
 import * as https from "https";
@@ -153,8 +154,6 @@ async function extractThresholds(
   androidTexts: string[],
   iosTexts: string[]
 ): Promise<PolicyThresholds> {
-  const client = new Anthropic();
-
   const androidContent = androidTexts
     .map((t, i) => `--- Android Source ${i + 1} ---\n${extractRelevantContent(t)}`)
     .join("\n\n");
@@ -167,13 +166,7 @@ async function extractThresholds(
     (new Date().getMonth() + 1) / 3
   )}`;
 
-  const message = await client.messages.create({
-    model: "claude-sonnet-4-6",
-    max_tokens: 1024,
-    messages: [
-      {
-        role: "user",
-        content: `You are a mobile app policy analyst. Extract the current minimum version requirements for React Native apps publishing to the Google Play Store and Apple App Store.
+  const prompt = `You are a mobile app policy analyst. Extract the current minimum version requirements for React Native apps publishing to the Google Play Store and Apple App Store.
 
 Return ONLY a valid JSON object — no explanation, no markdown, no code fences.
 
@@ -193,19 +186,40 @@ Fields (use null if a value is not explicitly stated in the docs):
 ${androidContent}
 
 === iOS OFFICIAL DOCS ===
-${iosContent}`,
-      },
-    ],
-  });
+${iosContent}`;
 
-  const raw = (message.content[0] as { type: string; text: string }).text.trim();
-  // Strip markdown code fences if Claude wraps the JSON
+  let raw: string;
+
+  if (process.env.ANTHROPIC_API_KEY) {
+    // Prefer Anthropic if key is available
+    console.log("  Using Anthropic (claude-sonnet-4-5)...");
+    const client = new Anthropic();
+    const message = await client.messages.create({
+      model: "claude-sonnet-4-5",
+      max_tokens: 1024,
+      messages: [{ role: "user", content: prompt }],
+    });
+    const block = message.content[0];
+    if (!block || block.type !== "text") throw new Error("Unexpected Anthropic response shape");
+    raw = block.text.trim();
+  } else if (process.env.GEMINI_API_KEY) {
+    // Fall back to Gemini
+    console.log("  Using Gemini (gemini-1.5-flash)...");
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const result = await model.generateContent(prompt);
+    raw = result.response.text().trim();
+  } else {
+    throw new Error(
+      "No AI API key found. Set either ANTHROPIC_API_KEY or GEMINI_API_KEY environment variable."
+    );
+  }
+
   const json = raw.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
-
   try {
     return JSON.parse(json) as PolicyThresholds;
   } catch {
-    throw new Error(`Claude returned non-JSON response:\n${raw}`);
+    throw new Error(`AI returned non-JSON response:\n${raw}`);
   }
 }
 
@@ -359,7 +373,8 @@ async function main() {
     throw new Error("All page fetches failed — cannot update policies safely");
   }
 
-  console.log(`\nExtracting thresholds with Claude (model: claude-sonnet-4-6)...`);
+  const aiProvider = process.env.ANTHROPIC_API_KEY ? "Anthropic" : process.env.GEMINI_API_KEY ? "Gemini" : "none";
+  console.log(`\nExtracting thresholds (provider: ${aiProvider})...`);
   const thresholds = await extractThresholds(validAndroid, validIos);
 
   console.log("\nExtracted thresholds:");

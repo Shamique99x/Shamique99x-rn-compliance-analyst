@@ -58,6 +58,7 @@ exports.resolveUpgrades = resolveUpgrades;
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const semver_1 = __importDefault(require("semver"));
+const generative_ai_1 = require("@google/generative-ai");
 const sdk_1 = __importDefault(require("@anthropic-ai/sdk"));
 // ── Static map loader ─────────────────────────────────────────────────────────
 let _db = null;
@@ -92,20 +93,15 @@ function readProjectDeps(projectPath) {
  * for a batch of unknown .so filenames.  Returns an empty array if
  * ANTHROPIC_API_KEY is not set or the call fails.
  */
-async function lookupWithClaude(soNames) {
-    if (!process.env.ANTHROPIC_API_KEY)
-        return [];
+/**
+ * AI fallback — tries Anthropic first, then Gemini, skips gracefully if neither key is set.
+ */
+async function lookupWithAI(soNames) {
     if (soNames.length === 0)
         return [];
-    try {
-        const client = new sdk_1.default();
-        const message = await client.messages.create({
-            model: "claude-haiku-4-5",
-            max_tokens: 1024,
-            messages: [
-                {
-                    role: "user",
-                    content: `You are an expert on the React Native ecosystem and Android native library packaging.
+    if (!process.env.ANTHROPIC_API_KEY && !process.env.GEMINI_API_KEY)
+        return [];
+    const prompt = `You are an expert on the React Native ecosystem and Android native library packaging.
 
 For each .so native library filename below, identify:
 1. The npm package that ships it (if it is a React Native / JS ecosystem package)
@@ -119,14 +115,27 @@ Each element must be one of:
   { "so": "<name>", "npm_package": null, "reason": "Unknown" }
 
 Libraries to identify:
-${soNames.map((n) => `  - ${n}`).join("\n")}`,
-                },
-            ],
-        });
-        const block = message.content[0];
-        if (!block || block.type !== "text")
-            return []; // unexpected response shape
-        const raw = block.text.trim();
+${soNames.map((n) => `  - ${n}`).join("\n")}`;
+    try {
+        let raw;
+        if (process.env.ANTHROPIC_API_KEY) {
+            const client = new sdk_1.default();
+            const message = await client.messages.create({
+                model: "claude-haiku-4-5",
+                max_tokens: 1024,
+                messages: [{ role: "user", content: prompt }],
+            });
+            const block = message.content[0];
+            if (!block || block.type !== "text")
+                return [];
+            raw = block.text.trim();
+        }
+        else {
+            const genAI = new generative_ai_1.GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+            const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+            const result = await model.generateContent(prompt);
+            raw = result.response.text().trim();
+        }
         const json = raw.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
         return JSON.parse(json);
     }
@@ -183,7 +192,7 @@ async function resolveUpgrades(nonCompliantLibs, projectPath) {
     }
     // ── Pass 2: Claude fallback for unknowns ──────────────────────────────────
     if (unknownLibs.length > 0) {
-        const claudeResults = await lookupWithClaude(unknownLibs.map((l) => l.name));
+        const claudeResults = await lookupWithAI(unknownLibs.map((l) => l.name));
         const resultsByName = new Map(claudeResults.map((r) => [r.so, r]));
         for (const lib of unknownLibs) {
             const result = resultsByName.get(lib.name);

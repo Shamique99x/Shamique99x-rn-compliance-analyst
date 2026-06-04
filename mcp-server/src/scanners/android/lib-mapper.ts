@@ -20,6 +20,7 @@
 import * as fs   from "fs";
 import * as path from "path";
 import semver    from "semver";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import Anthropic from "@anthropic-ai/sdk";
 import { LibUpgrade } from "../../types";
 
@@ -102,20 +103,14 @@ interface ClaudeLibResult {
  * for a batch of unknown .so filenames.  Returns an empty array if
  * ANTHROPIC_API_KEY is not set or the call fails.
  */
-async function lookupWithClaude(soNames: string[]): Promise<ClaudeLibResult[]> {
-  if (!process.env.ANTHROPIC_API_KEY) return [];
+/**
+ * AI fallback — tries Anthropic first, then Gemini, skips gracefully if neither key is set.
+ */
+async function lookupWithAI(soNames: string[]): Promise<ClaudeLibResult[]> {
   if (soNames.length === 0) return [];
+  if (!process.env.ANTHROPIC_API_KEY && !process.env.GEMINI_API_KEY) return [];
 
-  try {
-    const client = new Anthropic();
-
-    const message = await client.messages.create({
-      model: "claude-haiku-4-5",
-      max_tokens: 1024,
-      messages: [
-        {
-          role: "user",
-          content: `You are an expert on the React Native ecosystem and Android native library packaging.
+  const prompt = `You are an expert on the React Native ecosystem and Android native library packaging.
 
 For each .so native library filename below, identify:
 1. The npm package that ships it (if it is a React Native / JS ecosystem package)
@@ -129,14 +124,28 @@ Each element must be one of:
   { "so": "<name>", "npm_package": null, "reason": "Unknown" }
 
 Libraries to identify:
-${soNames.map((n) => `  - ${n}`).join("\n")}`,
-        },
-      ],
-    });
+${soNames.map((n) => `  - ${n}`).join("\n")}`;
 
-    const block = message.content[0];
-    if (!block || block.type !== "text") return []; // unexpected response shape
-    const raw  = block.text.trim();
+  try {
+    let raw: string;
+
+    if (process.env.ANTHROPIC_API_KEY) {
+      const client = new Anthropic();
+      const message = await client.messages.create({
+        model: "claude-haiku-4-5",
+        max_tokens: 1024,
+        messages: [{ role: "user", content: prompt }],
+      });
+      const block = message.content[0];
+      if (!block || block.type !== "text") return [];
+      raw = block.text.trim();
+    } else {
+      const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const result = await model.generateContent(prompt);
+      raw = result.response.text().trim();
+    }
+
     const json = raw.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
     return JSON.parse(json) as ClaudeLibResult[];
   } catch {
@@ -214,7 +223,7 @@ export async function resolveUpgrades(
 
   // ── Pass 2: Claude fallback for unknowns ──────────────────────────────────
   if (unknownLibs.length > 0) {
-    const claudeResults = await lookupWithClaude(unknownLibs.map((l) => l.name));
+    const claudeResults = await lookupWithAI(unknownLibs.map((l) => l.name));
     const resultsByName = new Map(claudeResults.map((r) => [r.so, r]));
 
     for (const lib of unknownLibs) {
