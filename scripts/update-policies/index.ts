@@ -209,29 +209,60 @@ ${iosContent}`;
     if (!block || block.type !== "text") throw new Error("Unexpected Anthropic response shape");
     raw = block.text.trim();
   } else if (geminiKey) {
-    // Fall back to Gemini — call v1 REST API directly (SDK defaults to v1beta which
-    // doesn't expose gemini-1.5-flash; native fetch avoids that entirely)
-    console.log("  Using Gemini (gemini-1.5-flash, v1 REST)...");
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ role: "user", parts: [{ text: prompt }] }],
-          generationConfig: { maxOutputTokens: 1024 },
-        }),
+    // Fall back to Gemini — try models in order until one responds successfully.
+    // gemini-2.0-flash is preferred; gemini-2.0-flash-lite is the fallback.
+    // Note: if ALL models return quota/404 errors your Google Cloud project likely
+    // needs billing enabled even for free-tier usage — see:
+    // https://aistudio.google.com/apikey → click project → Enable billing
+    const GEMINI_MODELS = [
+      "gemini-2.0-flash",
+      "gemini-2.0-flash-lite",
+      "gemini-1.5-flash",
+      "gemini-1.5-flash-8b",
+    ];
+
+    let lastError = "";
+    raw = "";
+
+    for (const modelName of GEMINI_MODELS) {
+      console.log(`  Trying Gemini model: ${modelName}...`);
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${geminiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            generationConfig: { maxOutputTokens: 1024 },
+          }),
+        }
+      );
+      if (!res.ok) {
+        const errBody = await res.text();
+        lastError = `${modelName}: HTTP ${res.status} — ${errBody.slice(0, 300)}`;
+        console.log(`  ✗ ${lastError}`);
+        continue;
       }
-    );
-    if (!res.ok) {
-      const errBody = await res.text();
-      throw new Error(`Gemini API error ${res.status}: ${errBody}`);
+      const data = await res.json() as {
+        candidates: Array<{ content: { parts: Array<{ text: string }> } }>;
+      };
+      raw = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "";
+      if (raw) {
+        console.log(`  ✓ Success with ${modelName}`);
+        break;
+      }
     }
-    const data = await res.json() as {
-      candidates: Array<{ content: { parts: Array<{ text: string }> } }>;
-    };
-    raw = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "";
-    if (!raw) throw new Error("Empty response from Gemini v1 API");
+
+    if (!raw) {
+      throw new Error(
+        `All Gemini models failed. Last error: ${lastError}\n\n` +
+        `If you see quota errors, your Google Cloud project likely needs billing enabled:\n` +
+        `  1. Go to https://aistudio.google.com/apikey\n` +
+        `  2. Click the project name next to your key\n` +
+        `  3. Enable billing (free tier still applies — no charges for normal usage)\n` +
+        `Or set the ANTHROPIC_API_KEY secret instead.`
+      );
+    }
   } else {
     throw new Error(
       "No AI API key found. Set either ANTHROPIC_API_KEY or GEMINI_API_KEY in repository secrets."
