@@ -1,0 +1,129 @@
+{
+  "version": "2025-Q2",
+  "platform": "ios",
+  "policies": [
+    {
+      "id": "ios-privacy-manifest-exists",
+      "name": "Privacy Manifest File (PrivacyInfo.xcprivacy)",
+      "platform": "ios",
+      "severity": "error",
+      "auto_fixable": true,
+      "description": "Apple requires all apps and SDKs to include a PrivacyInfo.xcprivacy privacy manifest file declaring privacy data use, tracking, and required reason APIs. Submissions without it are rejected.",
+      "docs_url": "https://developer.apple.com/documentation/bundleresources/privacy_manifest_files",
+      "check": {
+        "type": "file_exists",
+        "file": "ios/PrivacyInfo.xcprivacy"
+      },
+      "fix": {
+        "type": "create_file",
+        "file": "ios/PrivacyInfo.xcprivacy",
+        "template": "privacy_manifest_template"
+      },
+      "library_requirements": []
+    },
+    {
+      "id": "ios-privacy-required-reason-apis",
+      "name": "Required Reason APIs Declaration",
+      "platform": "ios",
+      "severity": "error",
+      "auto_fixable": true,
+      "description": "Apps using certain APIs (NSUserDefaults, NSFileManager file timestamps, UIDevice systemBootTime, disk space APIs) must declare a required reason in PrivacyInfo.xcprivacy. Undeclared usage causes App Store rejection.",
+      "docs_url": "https://developer.apple.com/documentation/bundleresources/privacy_manifest_files/describing_use_of_required_reason_api",
+      "check": {
+        "type": "privacy_required_reason_apis",
+        "scan_extensions": ["ts", "tsx", "js", "jsx", "m", "mm", "swift"],
+        "api_patterns": [
+          {
+            "category": "NSPrivacyAccessedAPICategoryUserDefaults",
+            "patterns": ["NSUserDefaults", "UserDefaults.standard", "AsyncStorage"],
+            "required_reason_codes": ["CA92.1", "1C8F.1", "AC6B.1", "C56D.1"]
+          },
+          {
+            "category": "NSPrivacyAccessedAPICategoryFileTimestamp",
+            "patterns": ["NSFileManager", "FileManager.default", "attributesOfItem", "creationDate", "modificationDate"],
+            "required_reason_codes": ["DDA9.1", "C617.1", "3B52.1", "0A2A.1"]
+          },
+          {
+            "category": "NSPrivacyAccessedAPICategorySystemBootTime",
+            "patterns": ["systemUptime", "mach_absolute_time", "ProcessInfo.processInfo.systemUptime"],
+            "required_reason_codes": ["35F9.1", "8FFB.1", "3D61.1"]
+          },
+          {
+            "category": "NSPrivacyAccessedAPICategoryDiskSpace",
+            "patterns": ["volumeAvailableCapacityForImportantUsage", "volumeTotalCapacity", "NSFileSystemFreeSize"],
+            "required_reason_codes": ["85F4.1", "E174.1"]
+          }
+        ]
+      },
+      "fix": {
+        "type": "privacy_manifest_append_apis",
+        "file": "ios/PrivacyInfo.xcprivacy"
+      },
+      "library_requirements": []
+    },
+    {
+      "id": "ios-min-deployment-target",
+      "name": "Minimum iOS Deployment Target",
+      "platform": "ios",
+      "severity": "error",
+      "auto_fixable": true,
+      "description": "React Native 0.73+ requires iOS 13 minimum; 0.75+ requires iOS 15.1. Apple recommends targeting iOS 16+ for new features. The Podfile and Xcode project must both be updated.",
+      "docs_url": "https://reactnative.dev/docs/environment-setup",
+      "check": {
+        "type": "composite",
+        "checks": [
+          {
+            "type": "podfile_platform_version",
+            "file": "ios/Podfile",
+            "min_version": "15.1"
+          },
+          {
+            "type": "pbxproj_property",
+            "file_pattern": "ios/*.xcodeproj/project.pbxproj",
+            "property": "IPHONEOS_DEPLOYMENT_TARGET",
+            "min_version": "15.1"
+          }
+        ]
+      },
+      "fix": {
+        "type": "composite",
+        "changes": [
+          {
+            "type": "podfile_platform_set",
+            "file": "ios/Podfile",
+            "version": "15.1"
+          },
+          {
+            "type": "pbxproj_property_set",
+            "file_pattern": "ios/*.xcodeproj/project.pbxproj",
+            "property": "IPHONEOS_DEPLOYMENT_TARGET",
+            "value": "15.1"
+          }
+        ]
+      },
+      "library_requirements": [
+        {
+          "name": "react-native",
+          "min_version": "0.73.0",
+          "reason": "RN 0.73 raised the minimum iOS deployment target to 13.4; 0.75 to 15.1"
+        }
+      ]
+    },
+    {
+      "id": "ios-xcode-version",
+      "name": "Xcode Version Requirement",
+      "platform": "ios",
+      "severity": "warning",
+      "auto_fixable": false,
+      "description": "Apple requires apps submitted to the App Store to be built with Xcode 16 or later (as of April 2025). Check your local Xcode version and CI/CD environment.",
+      "docs_url": "https://developer.apple.com/news/upcoming-requirements/",
+      "check": {
+        "type": "xcode_version_file",
+        "files": [".xcode-version", "ios/.xcode-version"],
+        "min_version": "16.0"
+      },
+      "fix": null,
+      "library_requirements": []
+    }
+  ]
+}

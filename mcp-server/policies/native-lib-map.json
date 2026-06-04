@@ -1,0 +1,124 @@
+{
+  "version": "2025-Q2",
+  "updated_at": "2025-05-21",
+  "description": "Maps native .so filenames found inside an APK to the npm package that ships them, along with the minimum version that produces 16 KB page-aligned binaries.",
+  "mappings": [
+    {
+      "so_patterns": ["hermes", "jsijniprofiler", "jsi", "fbjni", "turbomodulejsijni", "reactnativejni"],
+      "npm_packages": ["react-native"],
+      "min_version": "0.74.0",
+      "reason": "React Native 0.74 updated the bundled Hermes engine and all first-party native modules to ship 16 KB page-aligned .so files",
+      "docs_url": "https://reactnative.dev/blog/2024/04/22/release-0.74",
+      "confidence": "confirmed"
+    },
+    {
+      "so_patterns": ["reanimated"],
+      "npm_packages": ["react-native-reanimated"],
+      "min_version": "3.6.0",
+      "reason": "react-native-reanimated 3.6.0 rebuilt its native worklet runtime with 16 KB-aligned PT_LOAD segments",
+      "docs_url": "https://github.com/software-mansion/react-native-reanimated/releases/tag/3.6.0",
+      "confidence": "confirmed"
+    },
+    {
+      "so_patterns": ["rnscreens", "rn_screens"],
+      "npm_packages": ["react-native-screens"],
+      "min_version": "3.29.0",
+      "reason": "react-native-screens 3.29.0 added 16 KB page-size support for all native screen components",
+      "docs_url": "https://github.com/software-mansion/react-native-screens/releases/tag/3.29.0",
+      "confidence": "confirmed"
+    },
+    {
+      "so_patterns": ["gesturehandler"],
+      "npm_packages": ["react-native-gesture-handler"],
+      "min_version": "2.16.0",
+      "reason": "react-native-gesture-handler 2.16.0 updated its native recogniser library to use 16 KB-aligned builds",
+      "docs_url": "https://github.com/software-mansion/react-native-gesture-handler/releases/tag/2.16.0",
+      "confidence": "confirmed"
+    },
+    {
+      "so_patterns": ["visioncamera", "mrousavy"],
+      "npm_packages": ["react-native-vision-camera"],
+      "min_version": "4.0.0",
+      "reason": "react-native-vision-camera v4 was a full rewrite that shipped with 16 KB page-size compliant native builds",
+      "docs_url": "https://github.com/mrousavy/react-native-vision-camera/releases/tag/v4.0.0",
+      "confidence": "confirmed"
+    },
+    {
+      "so_patterns": ["mmkv"],
+      "npm_packages": ["react-native-mmkv"],
+      "min_version": "2.12.0",
+      "reason": "react-native-mmkv 2.12.0 updated the bundled MMKV C++ library to produce 16 KB-aligned shared objects",
+      "docs_url": "https://github.com/mrousavy/react-native-mmkv/releases/tag/v2.12.0",
+      "confidence": "community-reported"
+    },
+    {
+      "so_patterns": ["rnnavigation", "navigation", "reactnativenavigation"],
+      "npm_packages": ["react-native-navigation"],
+      "min_version": "7.36.0",
+      "reason": "react-native-navigation 7.36.0 (Wix) updated its native side-panel and stack implementations to 16 KB-aligned builds",
+      "docs_url": "https://github.com/wix/react-native-navigation/releases",
+      "confidence": "community-reported"
+    },
+    {
+      "so_patterns": ["skia", "rnskia"],
+      "npm_packages": ["@shopify/react-native-skia"],
+      "min_version": "1.0.0",
+      "reason": "@shopify/react-native-skia 1.0.0 rebuilt the Skia renderer against an updated toolchain that emits 16 KB-aligned PT_LOAD segments",
+      "docs_url": "https://github.com/Shopify/react-native-skia/releases/tag/v1.0.0",
+      "confidence": "community-reported"
+    },
+    {
+      "so_patterns": ["rnmaps", "mapbox", "googlemaps"],
+      "npm_packages": ["react-native-maps"],
+      "min_version": "1.14.0",
+      "reason": "react-native-maps 1.14.0 updated its native map renderer dependencies to 16 KB-aligned builds",
+      "docs_url": "https://github.com/react-native-maps/react-native-maps/releases",
+      "confidence": "community-reported"
+    },
+    {
+      "so_patterns": ["flipper", "fbjni_flipper"],
+      "npm_packages": ["react-native-flipper"],
+      "min_version": "0.212.0",
+      "reason": "react-native-flipper 0.212.0 updated the bundled Flipper SDK to a 16 KB page-size compatible build",
+      "docs_url": "https://github.com/facebook/flipper/releases",
+      "confidence": "community-reported"
+    },
+    {
+      "so_patterns": ["rnsvg", "rn_svg"],
+      "npm_packages": ["react-native-svg"],
+      "min_version": "14.1.0",
+      "reason": "react-native-svg 14.1.0 updated its native SVG renderer to ship 16 KB page-aligned shared objects",
+      "docs_url": "https://github.com/software-mansion/react-native-svg/releases",
+      "confidence": "community-reported"
+    },
+    {
+      "so_patterns": ["firebase", "rnfirebase"],
+      "npm_packages": [
+        "@react-native-firebase/app",
+        "@react-native-firebase/analytics",
+        "@react-native-firebase/crashlytics",
+        "@react-native-firebase/messaging"
+      ],
+      "min_version": "20.0.0",
+      "reason": "@react-native-firebase v20 updated the underlying Firebase iOS/Android SDKs which include 16 KB-aligned native code",
+      "docs_url": "https://rnfirebase.io/releases",
+      "confidence": "community-reported"
+    },
+    {
+      "so_patterns": ["crashlytics"],
+      "npm_packages": ["@react-native-firebase/crashlytics"],
+      "min_version": "20.0.0",
+      "reason": "@react-native-firebase/crashlytics v20 ships with a 16 KB page-aligned Crashlytics native SDK",
+      "docs_url": "https://rnfirebase.io/releases",
+      "confidence": "community-reported"
+    },
+    {
+      "so_patterns": ["sqlite", "opsqlite"],
+      "npm_packages": ["@op-engineering/op-sqlite"],
+      "min_version": "5.0.0",
+      "reason": "op-sqlite 5.0.0 rebuilt SQLite with 16 KB page-size alignment support",
+      "docs_url": "https://github.com/OP-Engineering/op-sqlite/releases",
+      "confidence": "community-reported"
+    }
+  ]
+}

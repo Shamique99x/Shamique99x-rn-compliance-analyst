@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "rn-compliance",
+  "displayName": "React Native Compliance",
+  "version": "1.0.0",
+  "description": "Scan and auto-fix Android/iOS app store policy violations in React Native projects",
+  "author": {
+    "name": "99x",
+    "email": "shamiquef@99x.io"
+  },
+  "keywords": ["react-native", "android", "ios", "compliance", "app-store", "policy"],
+  "userConfig": {
+    "anthropic_api_key": {
+      "type": "string",
+      "title": "Anthropic API key",
+      "description": "Used to identify unknown native libraries in APKs via Claude AI. Optional — static library mapping works without it.",
+      "sensitive": true,
+      "required": false
+    }
+  }
+}

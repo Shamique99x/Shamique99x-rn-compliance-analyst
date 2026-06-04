@@ -1,0 +1,149 @@
+{
+  "version": "2025-Q2",
+  "platform": "android",
+  "policies": [
+    {
+      "id": "android-16kb-page-size",
+      "name": "16 KB Page Size Alignment",
+      "platform": "android",
+      "severity": "error",
+      "auto_fixable": true,
+      "description": "Android 15 (API 35) requires all native .so libraries to be aligned to 16 KB memory pages. Apps using NDK code that are not aligned will crash on devices with 16 KB page sizes.",
+      "docs_url": "https://developer.android.com/guide/practices/page-sizes",
+      "check": {
+        "type": "composite",
+        "checks": [
+          {
+            "type": "file_contains",
+            "file": "android/gradle.properties",
+            "property": "android.bundle.enableUncompressedNativeLibs",
+            "expected_value": "true"
+          },
+          {
+            "type": "gradle_cmake_arg",
+            "file": "android/app/build.gradle",
+            "arg": "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON"
+          }
+        ]
+      },
+      "fix": {
+        "type": "composite",
+        "changes": [
+          {
+            "type": "properties_set",
+            "file": "android/gradle.properties",
+            "key": "android.bundle.enableUncompressedNativeLibs",
+            "value": "true"
+          },
+          {
+            "type": "gradle_cmake_arg_append",
+            "file": "android/app/build.gradle",
+            "arg": "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON"
+          },
+          {
+            "type": "cmake_linker_flag",
+            "file": "android/app/CMakeLists.txt",
+            "flag": "-Wl,-z,max-page-size=16384",
+            "optional": true
+          }
+        ]
+      },
+      "library_requirements": [
+        {
+          "name": "react-native",
+          "min_version": "0.74.0",
+          "reason": "First RN version shipping with a 16 KB page-size compatible Hermes engine"
+        }
+      ]
+    },
+    {
+      "id": "android-target-sdk",
+      "name": "Target & Compile SDK Version",
+      "platform": "android",
+      "severity": "error",
+      "auto_fixable": true,
+      "description": "Google Play requires new apps and updates to target API level 35 (Android 15) as of August 2025. compileSdkVersion must match or exceed targetSdkVersion.",
+      "docs_url": "https://developer.android.com/google/play/requirements/target-sdk",
+      "check": {
+        "type": "composite",
+        "checks": [
+          {
+            "type": "gradle_int_property",
+            "file": "android/app/build.gradle",
+            "property": "targetSdkVersion",
+            "min_value": 35
+          },
+          {
+            "type": "gradle_int_property",
+            "file": "android/app/build.gradle",
+            "property": "compileSdkVersion",
+            "min_value": 35
+          }
+        ]
+      },
+      "fix": {
+        "type": "composite",
+        "changes": [
+          {
+            "type": "gradle_int_property_set",
+            "file": "android/app/build.gradle",
+            "property": "targetSdkVersion",
+            "value": 35
+          },
+          {
+            "type": "gradle_int_property_set",
+            "file": "android/app/build.gradle",
+            "property": "compileSdkVersion",
+            "value": 35
+          }
+        ]
+      },
+      "library_requirements": []
+    },
+    {
+      "id": "android-agp-version",
+      "name": "Android Gradle Plugin Version",
+      "platform": "android",
+      "severity": "warning",
+      "auto_fixable": true,
+      "description": "Android Gradle Plugin (AGP) 8.3+ is required for 16 KB page size support and API 35 compatibility. Older AGP versions may produce incompatible builds.",
+      "docs_url": "https://developer.android.com/build/releases/gradle-plugin",
+      "check": {
+        "type": "gradle_classpath_version",
+        "file": "android/build.gradle",
+        "dependency": "com.android.tools.build:gradle",
+        "min_version": "8.3.0"
+      },
+      "fix": {
+        "type": "gradle_classpath_version_set",
+        "file": "android/build.gradle",
+        "dependency": "com.android.tools.build:gradle",
+        "version": "8.3.2"
+      },
+      "library_requirements": []
+    },
+    {
+      "id": "android-gradle-wrapper",
+      "name": "Gradle Wrapper Version",
+      "platform": "android",
+      "severity": "warning",
+      "auto_fixable": true,
+      "description": "Gradle 8.6+ is required to work with AGP 8.3+. Mismatched Gradle and AGP versions cause build failures.",
+      "docs_url": "https://developer.android.com/build/releases/gradle-plugin#updating-gradle",
+      "check": {
+        "type": "properties_version",
+        "file": "android/gradle/wrapper/gradle-wrapper.properties",
+        "property": "distributionUrl",
+        "version_pattern": "gradle-(\\d+\\.\\d+(?:\\.\\d+)?)-",
+        "min_version": "8.6"
+      },
+      "fix": {
+        "type": "properties_set",
+        "file": "android/gradle/wrapper/gradle-wrapper.properties",
+        "key": "distributionUrl",
+        "value": "https\\://services.gradle.org/distributions/gradle-8.6-all.zip"
+      },
+      "library_requirements": []
+    }
+  ]
+}

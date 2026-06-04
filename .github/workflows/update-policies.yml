@@ -1,0 +1,53 @@
+name: Update Policy Definitions
+
+on:
+  schedule:
+    - cron: "0 2 * * 0"  # Every Sunday at 02:00 UTC
+  workflow_dispatch:       # Manual trigger from GitHub Actions UI
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write     # needed to push the updated JSON files
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: scripts/update-policies/package.json
+
+      - name: Install script dependencies
+        run: npm install
+        working-directory: scripts/update-policies
+
+      - name: Fetch official pages and update policies
+        run: npx tsx index.ts
+        working-directory: scripts/update-policies
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          POLICIES_DIR: ${{ github.workspace }}/mcp-server/policies
+
+      - name: Check for changes
+        id: diff
+        run: |
+          if git diff --quiet mcp-server/policies/; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Policy files are already up to date."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "Policy files have been updated:"
+            git diff --stat mcp-server/policies/
+          fi
+
+      - name: Commit and push updated policies
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add mcp-server/policies/android.json mcp-server/policies/ios.json
+          git commit -m "chore: update policy definitions from official sources [$(date +%Y-%m-%d)]"
+          git push
