@@ -194,6 +194,9 @@ ${iosContent}`;
   const anthropicKey = process.env.ANTHROPIC_API_KEY?.trim();
   const geminiKey    = process.env.GEMINI_API_KEY?.trim();
 
+  console.log(`  ANTHROPIC_API_KEY set: ${!!anthropicKey}`);
+  console.log(`  GEMINI_API_KEY set: ${!!geminiKey}`);
+
   if (anthropicKey) {
     // Prefer Anthropic if key is available
     console.log("  Using Anthropic (claude-sonnet-4-5)...");
