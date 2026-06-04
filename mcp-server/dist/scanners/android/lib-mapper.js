@@ -58,7 +58,6 @@ exports.resolveUpgrades = resolveUpgrades;
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const semver_1 = __importDefault(require("semver"));
-const generative_ai_1 = require("@google/generative-ai");
 const sdk_1 = __importDefault(require("@anthropic-ai/sdk"));
 // ── Static map loader ─────────────────────────────────────────────────────────
 let _db = null;
@@ -131,10 +130,31 @@ ${soNames.map((n) => `  - ${n}`).join("\n")}`;
             raw = block.text.trim();
         }
         else {
-            const genAI = new generative_ai_1.GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-            const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-            const result = await model.generateContent(prompt);
-            raw = result.response.text().trim();
+            // Call Gemini REST API — auth via X-goog-api-key header.
+            // Try models in order until one succeeds.
+            const GEMINI_MODELS = ["gemini-flash-latest", "gemini-2.0-flash", "gemini-2.0-flash-lite"];
+            raw = "";
+            for (const modelName of GEMINI_MODELS) {
+                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-goog-api-key": process.env.GEMINI_API_KEY,
+                    },
+                    body: JSON.stringify({
+                        contents: [{ role: "user", parts: [{ text: prompt }] }],
+                        generationConfig: { maxOutputTokens: 2048 },
+                    }),
+                });
+                if (!res.ok)
+                    continue;
+                const data = await res.json();
+                raw = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "";
+                if (raw)
+                    break;
+            }
+            if (!raw)
+                return [];
         }
         const json = raw.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
         return JSON.parse(json);
