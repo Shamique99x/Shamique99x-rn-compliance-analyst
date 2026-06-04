@@ -1,5 +1,5 @@
 {
-  "version": "2025-Q2",
+  "version": "2026-Q2",
   "platform": "ios",
   "policies": [
     {
@@ -31,27 +31,70 @@
       "docs_url": "https://developer.apple.com/documentation/bundleresources/privacy_manifest_files/describing_use_of_required_reason_api",
       "check": {
         "type": "privacy_required_reason_apis",
-        "scan_extensions": ["ts", "tsx", "js", "jsx", "m", "mm", "swift"],
+        "scan_extensions": [
+          "ts",
+          "tsx",
+          "js",
+          "jsx",
+          "m",
+          "mm",
+          "swift"
+        ],
         "api_patterns": [
           {
             "category": "NSPrivacyAccessedAPICategoryUserDefaults",
-            "patterns": ["NSUserDefaults", "UserDefaults.standard", "AsyncStorage"],
-            "required_reason_codes": ["CA92.1", "1C8F.1", "AC6B.1", "C56D.1"]
+            "patterns": [
+              "NSUserDefaults",
+              "UserDefaults.standard",
+              "AsyncStorage"
+            ],
+            "required_reason_codes": [
+              "CA92.1",
+              "1C8F.1",
+              "AC6B.1",
+              "C56D.1"
+            ]
           },
           {
             "category": "NSPrivacyAccessedAPICategoryFileTimestamp",
-            "patterns": ["NSFileManager", "FileManager.default", "attributesOfItem", "creationDate", "modificationDate"],
-            "required_reason_codes": ["DDA9.1", "C617.1", "3B52.1", "0A2A.1"]
+            "patterns": [
+              "NSFileManager",
+              "FileManager.default",
+              "attributesOfItem",
+              "creationDate",
+              "modificationDate"
+            ],
+            "required_reason_codes": [
+              "DDA9.1",
+              "C617.1",
+              "3B52.1",
+              "0A2A.1"
+            ]
           },
           {
             "category": "NSPrivacyAccessedAPICategorySystemBootTime",
-            "patterns": ["systemUptime", "mach_absolute_time", "ProcessInfo.processInfo.systemUptime"],
-            "required_reason_codes": ["35F9.1", "8FFB.1", "3D61.1"]
+            "patterns": [
+              "systemUptime",
+              "mach_absolute_time",
+              "ProcessInfo.processInfo.systemUptime"
+            ],
+            "required_reason_codes": [
+              "35F9.1",
+              "8FFB.1",
+              "3D61.1"
+            ]
           },
           {
             "category": "NSPrivacyAccessedAPICategoryDiskSpace",
-            "patterns": ["volumeAvailableCapacityForImportantUsage", "volumeTotalCapacity", "NSFileSystemFreeSize"],
-            "required_reason_codes": ["85F4.1", "E174.1"]
+            "patterns": [
+              "volumeAvailableCapacityForImportantUsage",
+              "volumeTotalCapacity",
+              "NSFileSystemFreeSize"
+            ],
+            "required_reason_codes": [
+              "85F4.1",
+              "E174.1"
+            ]
           }
         ]
       },
@@ -119,8 +162,11 @@
       "docs_url": "https://developer.apple.com/news/upcoming-requirements/",
       "check": {
         "type": "xcode_version_file",
-        "files": [".xcode-version", "ios/.xcode-version"],
-        "min_version": "16.0"
+        "files": [
+          ".xcode-version",
+          "ios/.xcode-version"
+        ],
+        "min_version": "15.0"
       },
       "fix": null,
       "library_requirements": []

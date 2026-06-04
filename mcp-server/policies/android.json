@@ -1,5 +1,5 @@
 {
-  "version": "2025-Q2",
+  "version": "2026-Q2",
   "platform": "android",
   "policies": [
     {
@@ -112,13 +112,13 @@
         "type": "gradle_classpath_version",
         "file": "android/build.gradle",
         "dependency": "com.android.tools.build:gradle",
-        "min_version": "8.3.0"
+        "min_version": "8.5.1"
       },
       "fix": {
         "type": "gradle_classpath_version_set",
         "file": "android/build.gradle",
         "dependency": "com.android.tools.build:gradle",
-        "version": "8.3.2"
+        "version": "8.5.1"
       },
       "library_requirements": []
     },
