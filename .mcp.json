@@ -7,7 +7,7 @@
         "NODE_PATH": "${CLAUDE_PLUGIN_ROOT}/mcp-server/node_modules",
         "POLICIES_DIR": "${CLAUDE_PLUGIN_ROOT}/mcp-server/policies",
         "PLUGIN_CACHE_DIR": "${CLAUDE_PLUGIN_DATA}/policy-cache",
-        "POLICIES_REMOTE_URL": "https://raw.githubusercontent.com/99x/claude-rn-compliance/main/mcp-server/policies",
+        "POLICIES_REMOTE_URL": "https://raw.githubusercontent.com/Shamique99x/claude-rn-compliance/master/mcp-server/policies",
         "ANTHROPIC_API_KEY": "${user_config.anthropic_api_key}"
       }
     }
