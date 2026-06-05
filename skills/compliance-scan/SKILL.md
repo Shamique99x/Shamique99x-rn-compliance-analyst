@@ -177,6 +177,58 @@ Manual action required:
     Inspect the APK manually or check with the library maintainer.
 ```
 
+### 12. Offer APK inspection
+
+After all config fixes and library upgrades are done (or skipped), if the scanned platforms include `android`, ask:
+
+```
+Would you like to inspect the APK for 16 KB page-size compliance as well?
+This checks the actual compiled .so binaries inside the APK — a deeper check than the source-level scan.
+
+(Requires a built APK. I can build one if none exists.)  [y/N]
+```
+
+- If **no** → stop here.
+- If **yes** → run the full inspect-apk flow:
+
+  1. Call `compliance_inspect_apk` with `projectPath` = current working directory.
+
+  2. **If no APK found** — ask:
+     ```
+     No APK found. Should I build one now? (debug variant)  [y/N]
+     ```
+     - If **no** → print `cd android && ./gradlew assembleDebug` and stop.
+     - If **yes** → run:
+       ```bash
+       cd android && ./gradlew assembleDebug 2>&1
+       ```
+       - If build **succeeds** → retry `compliance_inspect_apk` and continue.
+       - If build **fails** → analyse errors, apply relevant `compliance_fix` calls automatically, retry the build once more. If it still fails, show remaining errors and stop.
+
+  3. **Display APK results** — group by ABI, show ✓/✗ per library:
+     ```
+     APK Inspection: <apk_path>
+     Libraries checked: <N>
+
+     arm64-v8a  (<N> libraries)
+       ✓  libhermes.so          aligned=0x4000  stored
+       ✗  libreanimated.so      aligned=0x1000  stored  ← PT_LOAD alignment too low
+
+     armeabi-v7a  (<N> libraries)
+       ✓  libhermes.so          aligned=0x1000  stored  (32-bit: 4 KB is acceptable)
+     ```
+
+  4. **Show upgrade suggestions** from `upgrades` — same format as step 9, ask for confirmation before running.
+
+  5. **Final summary**:
+     ```
+     ✓ All libraries are 16 KB page-size compliant.
+     ```
+     or
+     ```
+     ✗ <N> non-compliant library/libraries found. Upgrade the packages above and rebuild.
+     ```
+
 ---
 
 ## Tone and formatting rules
