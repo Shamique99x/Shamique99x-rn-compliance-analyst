@@ -178,7 +178,7 @@ Use this exact shape (use null for any field not explicitly stated in the docs):
   "ios_deployment_target_min": "<version string — minimum iOS deployment target, e.g. 15.1>",
   "ios_xcode_min": "<version string — minimum Xcode for App Store submission, e.g. 16.0>",
   "version_label": "${currentQuarter}",
-  "notes": "<one sentence about the most important upcoming deadline, or null>"
+  "notes": "<max 15 words about the most important upcoming deadline, or null>"
 }
 
 === ANDROID OFFICIAL DOCS ===
@@ -235,7 +235,7 @@ ${iosContent}`;
           body: JSON.stringify({
             contents: [{ role: "user", parts: [{ text: prompt }] }],
             generationConfig: {
-              maxOutputTokens: 2048,
+              maxOutputTokens: 4096,
               responseMimeType: "application/json",
             },
           }),
