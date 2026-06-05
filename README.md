@@ -80,12 +80,12 @@ For a guided conversational experience, install the skill:
 
 ```bash
 # macOS/Linux
-mkdir -p ~/.claude/commands
-cp skills/compliance-scan.md ~/.claude/commands/compliance-scan.md
+mkdir -p ~/.claude/commands/compliance-scan
+cp skills/compliance-scan/SKILL.md ~/.claude/commands/compliance-scan/SKILL.md
 
 # Windows (PowerShell)
-New-Item -ItemType Directory -Force "$env:USERPROFILE\.claude\commands"
-Copy-Item skills\compliance-scan.md "$env:USERPROFILE\.claude\commands\compliance-scan.md"
+New-Item -ItemType Directory -Force "$env:USERPROFILE\.claude\commands\compliance-scan"
+Copy-Item "skills\compliance-scan\SKILL.md" "$env:USERPROFILE\.claude\commands\compliance-scan\SKILL.md"
 ```
 
 Then use `/compliance-scan` inside Claude Code for a step-by-step scan + fix flow.
