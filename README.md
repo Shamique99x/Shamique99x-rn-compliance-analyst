@@ -1,144 +1,136 @@
-# claude-rn-compliance
+# React Native Compliance — Claude Code Plugin
 
-A Claude Code plugin that automatically detects and fixes Android/iOS app store policy violations in React Native projects.
+Scan and auto-fix Android/iOS App Store policy violations directly from Claude Code.
 
 ## What it checks
 
 | Platform | Policy | Auto-fix |
 |----------|--------|----------|
-| Android | 16 KB page size alignment (Android 15 / Pixel 8+) | Yes |
-| Android | targetSdkVersion / compileSdkVersion >= 35 | Yes |
-| Android | Android Gradle Plugin >= 8.3 | Yes |
-| Android | Gradle wrapper >= 8.6 | Yes |
+| Android | 16 KB page size alignment (Android 15+) | Yes |
+| Android | targetSdkVersion / compileSdkVersion ≥ 35 | Yes |
+| Android | Android Gradle Plugin ≥ 8.3 | Yes |
+| Android | Gradle wrapper ≥ 8.6 | Yes |
 | iOS | PrivacyInfo.xcprivacy exists | Yes |
 | iOS | Required Reason APIs declared in privacy manifest | Yes |
-| iOS | Minimum deployment target >= iOS 15.1 | Yes |
-| iOS | Xcode >= 16.0 | Warning only |
+| iOS | Minimum deployment target ≥ iOS 15.1 | Yes |
+| iOS | Xcode ≥ 16.0 | Warning only |
 
 ---
 
 ## Installation
 
-### 1. Install the MCP server
+### 1. Clone the repo
 
 ```bash
-cd mcp-server
+git clone https://github.com/Shamique99x/claude-rn-compliance
+```
+
+### 2. Install dependencies
+
+```bash
+cd claude-rn-compliance/mcp-server
 npm install
-npm run build
 ```
 
-### 2. Register the MCP server with Claude Code
+The compiled `dist/` is already included — no build step needed.
 
-Add to your project's `.claude/settings.json` (or `~/.claude/settings.json` for global use):
+### 3. Register with Claude Code
 
-```json
-{
-  "mcpServers": {
-    "claude-rn-compliance": {
-      "command": "node",
-      "args": ["/absolute/path/to/claude-rn-compliance/mcp-server/dist/index.js"]
-    }
-  }
-}
+**Project-scoped** (recommended — only active inside one project):
+
+```bash
+cd /path/to/your-rn-project
+claude mcp add --scope project rn-compliance node "/absolute/path/to/claude-rn-compliance/mcp-server/dist/index.js" --env POLICIES_DIR="/absolute/path/to/claude-rn-compliance/mcp-server/policies"
 ```
 
-### 3. Install the slash command
+**Global** (active in all projects):
 
-Copy `skill/compliance-scan.md` to your Claude Code commands directory. This makes `/compliance-scan` available globally in both the VS Code extension and the CLI.
+```bash
+claude mcp add rn-compliance node "/absolute/path/to/claude-rn-compliance/mcp-server/dist/index.js" --env POLICIES_DIR="/absolute/path/to/claude-rn-compliance/mcp-server/policies"
+```
+
+### 4. Verify
+
+Open a Claude Code chat inside your project and run:
+
+```
+/mcp
+```
+
+You should see `rn-compliance` listed as connected.
+
+---
+
+## Available tools
+
+| Tool | Description |
+|------|-------------|
+| `compliance_scan` | Scan the project for Android/iOS policy violations |
+| `compliance_fix` | Fix specific violations by ID (creates `.bak` backups) |
+| `compliance_fix_all` | Scan + fix all auto-fixable violations in one shot |
+| `compliance_upgrade_libraries` | Run npm/yarn/pnpm/bun to upgrade libraries to compliant versions |
+| `compliance_inspect_apk` | Inspect a built APK — checks every `.so` for 16 KB page-alignment |
+| `compliance_refresh_policies` | Pull latest policy thresholds from GitHub |
+| `compliance_cache_status` | Check if the local policy cache is stale (>24h old) |
+| `compliance_policy_info` | Show current policy versions, counts, and cache info |
+
+### Optional: `/compliance-scan` skill
+
+For a guided conversational experience, install the skill:
 
 ```bash
 # macOS/Linux
 mkdir -p ~/.claude/commands
-cp skill/compliance-scan.md ~/.claude/commands/compliance-scan.md
+cp skills/compliance-scan.md ~/.claude/commands/compliance-scan.md
 
 # Windows (PowerShell)
 New-Item -ItemType Directory -Force "$env:USERPROFILE\.claude\commands"
-Copy-Item skill\compliance-scan.md "$env:USERPROFILE\.claude\commands\compliance-scan.md"
+Copy-Item skills\compliance-scan.md "$env:USERPROFILE\.claude\commands\compliance-scan.md"
 ```
 
-For project-scoped installation (only available inside one project), copy to `.claude/commands/compliance-scan.md` in the RN project root instead.
+Then use `/compliance-scan` inside Claude Code for a step-by-step scan + fix flow.
 
 ---
 
-## Usage
-
-Inside Claude Code, run:
+## Typical workflow
 
 ```
-/compliance-scan              # Scan both Android and iOS
-/compliance-scan android      # Android only
-/compliance-scan ios          # iOS only
-/compliance-scan --refresh    # Fetch latest policies, then scan
-```
+# 1. Scan
+compliance_scan projectPath="/path/to/my-rn-app"
 
-### Example session
+# 2. Fix everything auto-fixable
+compliance_fix_all projectPath="/path/to/my-rn-app"
 
-```
-> /compliance-scan
+# 3. Upgrade libraries that need it (after reviewing suggestions)
+compliance_upgrade_libraries projectPath="/path/to/my-rn-app" upgrades=[...]
 
-⚠️  Library upgrades required
-
-  • react-native  0.73.1 → 0.74.0+
-    Reason: First RN version with 16 KB-compatible Hermes
-    Required by: 16 KB Page Size Alignment
-
-[ERROR] 16 KB Page Size Alignment
-  Android 15 requires all native .so libraries aligned to 16 KB pages.
-  Details: android.bundle.enableUncompressedNativeLibs=true missing; cmake arg missing
-  Files: android/gradle.properties, android/app/build.gradle
-  Docs: https://developer.android.com/guide/practices/page-sizes
-  Auto-fixable: Yes
-
-[ERROR] Target & Compile SDK Version
-  targetSdkVersion is 33, must be >= 35
-  Files: android/app/build.gradle
-  Auto-fixable: Yes
-
-[ERROR] Privacy Manifest File (PrivacyInfo.xcprivacy)
-  ios/PrivacyInfo.xcprivacy does not exist.
-  Files: ios/PrivacyInfo.xcprivacy
-  Auto-fixable: Yes
-
-Found 3 violation(s): 3 error(s). All 3 are auto-fixable.
-
-Proceed with automatic fixes? [y/N]
-
-> y
-
-Fixes applied:
-
-  android/gradle.properties
-    + Added android.bundle.enableUncompressedNativeLibs=true
-
-  android/app/build.gradle
-    + Bumped compileSdkVersion and targetSdkVersion to 35
-    + Added -DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON to cmake arguments
-
-  ios/PrivacyInfo.xcprivacy
-    + Created PrivacyInfo.xcprivacy with default template
-    + Added NSPrivacyAccessedAPITypes for UserDefaults (AsyncStorage usage detected)
-
-Backup files created with .bak extension alongside each modified file.
+# 4. Verify the built APK
+compliance_inspect_apk projectPath="/path/to/my-rn-app"
 ```
 
 ---
 
-## Policy updates
+## Optional: AI-powered unknown library identification
 
-Policy definitions ship bundled with the plugin. They auto-refresh from the remote source every 24 hours when online.
+When inspecting APKs, the plugin can identify unknown native libraries using AI.
+Add one of the following in plugin settings (or as env vars):
+
+| Key | Source | Cost |
+|-----|--------|------|
+| `ANTHROPIC_API_KEY` | console.anthropic.com | Paid |
+| `GEMINI_API_KEY` | aistudio.google.com | Free tier available |
+
+If neither key is set, unrecognised libraries are flagged for manual review.
+
+---
+
+## Policy auto-updates
+
+Policy thresholds are fetched from the official Android/iOS developer docs weekly via GitHub Actions and committed to this repo. The plugin pulls the latest from GitHub every 24 hours automatically.
 
 To force a refresh:
 ```
-/compliance-scan --refresh
-```
-
----
-
-## Running tests
-
-```bash
-cd mcp-server
-npm test
+compliance_refresh_policies
 ```
 
 ---
@@ -147,22 +139,27 @@ npm test
 
 ```
 claude-rn-compliance/
-├── skill/
-│   └── compliance-scan.md        ← Claude Code /compliance-scan skill
+├── .claude-plugin/
+│   └── plugin.json               ← Plugin manifest
+├── .mcp.json                     ← MCP server wiring
+├── .github/workflows/
+│   └── update-policies.yml       ← Weekly policy auto-update
+├── skills/
+│   └── compliance-scan.md        ← /compliance-scan skill
 ├── mcp-server/
+│   ├── dist/                     ← Compiled JS (committed)
 │   ├── src/
-│   │   ├── index.ts              ← MCP server entry
-│   │   ├── tools/                ← scan, fix, refresh tools
+│   │   ├── index.ts              ← MCP server entry point
+│   │   ├── tools/                ← scan, fix, upgrade, inspect-apk, policy-info
 │   │   ├── scanners/             ← per-policy violation detectors
 │   │   ├── fixers/               ← per-policy auto-fixers
-│   │   └── policies/             ← cache/loader/fetcher
-│   ├── policies/
-│   │   ├── android.json          ← bundled Android policy rules
-│   │   └── ios.json              ← bundled iOS policy rules
-│   └── tests/
-│       ├── fixtures/             ← sample non-compliant project files
-│       └── scanners.test.ts      ← scanner unit tests
-└── README.md
+│   │   └── policies/             ← cache / loader / fetcher
+│   └── policies/
+│       ├── android.json          ← Android policy rules
+│       ├── ios.json              ← iOS policy rules
+│       └── native-lib-map.json   ← Known native library → npm package map
+└── scripts/
+    └── update-policies/          ← GitHub Actions policy updater script
 ```
 
 ## Adding new policies
@@ -170,5 +167,5 @@ claude-rn-compliance/
 1. Add the policy entry to `mcp-server/policies/android.json` or `ios.json`
 2. Create a scanner in `src/scanners/<platform>/`
 3. Create a fixer in `src/fixers/<platform>/` (if auto-fixable)
-4. Register the fixer in `src/tools/fix.ts` `FIXER_MAP`
-5. Add a test case in `tests/scanners.test.ts`
+4. Register the fixer in `src/tools/fix.ts`
+5. Run `npm run build` inside `mcp-server/` and commit `dist/`
