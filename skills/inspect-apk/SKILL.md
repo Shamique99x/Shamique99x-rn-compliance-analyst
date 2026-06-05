@@ -24,14 +24,80 @@ Call `compliance_inspect_apk` with:
 - `projectPath`: current working directory
 - `apkPath`: the value of `$ARGUMENTS` if it looks like a file path (starts with `/`, `./`, `C:\`, or ends with `.apk`), otherwise pass `variant` = `$ARGUMENTS` (e.g. "release" or "debug")
 
-### 2. Handle errors
+### 2. Handle missing APK — offer to build
 
-If `error` is set in the result:
-> ✗ Could not inspect APK: <error>
->
-> Make sure you have built the APK first:
-> `cd android && ./gradlew assembleDebug`
+If `error` is set in the result and the error message contains "No APK found" or "no APK" (case-insensitive):
 
+Ask the user:
+```
+No APK found in android/app/build/outputs/apk/.
+
+Should I build one now? (debug variant)  [y/N]
+```
+
+- If **no** → print the manual command and stop:
+  ```
+  Run this to build:
+    cd android && ./gradlew assembleDebug
+  Then re-run /rn-compliance:inspect-apk
+  ```
+
+- If **yes** → go to step 2a.
+
+### 2a. Build the APK
+
+Run the build command using Bash:
+```bash
+cd android && ./gradlew assembleDebug 2>&1
+```
+
+Stream / capture the full output.
+
+**If the build succeeds** (exit code 0):
+```
+✓ APK built successfully.
+```
+Then retry `compliance_inspect_apk` with the same arguments and continue from step 3.
+
+**If the build fails** (non-zero exit code):
+
+Parse the Gradle output for error lines (lines containing `error:`, `FAILED`, `Exception`, or `> Task`). Then:
+
+```
+✗ Build failed. Analysing errors...
+```
+
+Attempt to fix each error automatically:
+
+| Error pattern | Automatic fix |
+|---|---|
+| `compileSdkVersion` / `targetSdkVersion` too low | Call `compliance_fix` with `["android-target-sdk"]` |
+| `Minimum supported Gradle version` | Call `compliance_fix` with `["android-gradle-wrapper"]` |
+| AGP version incompatible | Call `compliance_fix` with `["android-agp-version"]` |
+| Missing `namespace` in module | Add `namespace "com.yourapp"` to the affected `build.gradle` |
+| Dependency resolution failure | Run `cd android && ./gradlew --refresh-dependencies assembleDebug` |
+| Any other error | Show the error and ask the user if they want to proceed manually |
+
+After applying fixes, re-run the build:
+```bash
+cd android && ./gradlew assembleDebug 2>&1
+```
+
+If the second build succeeds → continue from step 3 with the new APK.
+If the second build also fails → show the remaining errors and stop:
+```
+✗ Could not fix build errors automatically. Remaining errors:
+  <error lines>
+
+Please fix these manually, then re-run /rn-compliance:inspect-apk.
+```
+
+### 2b. Handle other errors
+
+If `error` is set for any reason other than missing APK:
+```
+✗ Could not inspect APK: <error>
+```
 Stop here.
 
 ### 3. Display results
