@@ -21,12 +21,12 @@ Call `compliance_scan` with:
 
 ### 2. Display compact table
 
-Print a header line showing the APK inspection status if available:
+Print a header line:
 
 ```
 React Native Compliance Status
-APK inspection: ✓ 12 libraries checked  (or "not available — build an APK for deep inspection")
 Policies version: <policies_version>
+APK inspection:   not included — run /inspect-apk for deep binary checks
 ```
 
 Then one line per policy, grouped by platform. Show every policy from the scan — both passing and failing:

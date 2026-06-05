@@ -74,21 +74,32 @@ You should see `rn-compliance` listed as connected.
 | `compliance_cache_status` | Check if the local policy cache is stale (>24h old) |
 | `compliance_policy_info` | Show current policy versions, counts, and cache info |
 
-### Optional: `/compliance-scan` skill
+### Optional: Install skills (slash commands)
 
-For a guided conversational experience, install the skill:
+Four skills are included for a guided conversational experience:
 
+| Skill | Command | What it does |
+|-------|---------|-------------|
+| `compliance-scan` | `/compliance-scan` | Full scan → fix → APK inspection flow |
+| `inspect-apk` | `/inspect-apk` | APK-only deep 16 KB check (offers to build if needed) |
+| `policies` | `/policies` | Show loaded policy versions and cache status |
+| `status` | `/status` | Quick pass/fail summary, no fix prompts |
+
+**Install all skills — macOS/Linux:**
 ```bash
-# macOS/Linux
-mkdir -p ~/.claude/commands/compliance-scan
-cp skills/compliance-scan/SKILL.md ~/.claude/commands/compliance-scan/SKILL.md
-
-# Windows (PowerShell)
-New-Item -ItemType Directory -Force "$env:USERPROFILE\.claude\commands\compliance-scan"
-Copy-Item "skills\compliance-scan\SKILL.md" "$env:USERPROFILE\.claude\commands\compliance-scan\SKILL.md"
+for skill in compliance-scan inspect-apk policies status; do
+  mkdir -p ~/.claude/commands/$skill
+  cp skills/$skill/SKILL.md ~/.claude/commands/$skill/SKILL.md
+done
 ```
 
-Then use `/compliance-scan` inside Claude Code for a step-by-step scan + fix flow.
+**Install all skills — Windows (PowerShell):**
+```powershell
+foreach ($skill in @("compliance-scan","inspect-apk","policies","status")) {
+  New-Item -ItemType Directory -Force "$env:USERPROFILE\.claude\commands\$skill"
+  Copy-Item "skills\$skill\SKILL.md" "$env:USERPROFILE\.claude\commands\$skill\SKILL.md"
+}
+```
 
 ---
 
@@ -145,7 +156,10 @@ claude-rn-compliance/
 ├── .github/workflows/
 │   └── update-policies.yml       ← Weekly policy auto-update
 ├── skills/
-│   └── compliance-scan.md        ← /compliance-scan skill
+│   ├── compliance-scan/SKILL.md  ← /compliance-scan skill (scan + fix + APK)
+│   ├── inspect-apk/SKILL.md      ← /inspect-apk skill (APK-only deep check)
+│   ├── policies/SKILL.md         ← /policies skill (show loaded policy versions)
+│   └── status/SKILL.md           ← /status skill (quick pass/fail summary)
 ├── mcp-server/
 │   ├── dist/                     ← Compiled JS (committed)
 │   ├── src/

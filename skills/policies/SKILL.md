@@ -36,7 +36,7 @@ iOS  (<version>)
 
 Native Library Map  (<version>)
   Entries:   <mapping_count> known packages
-  Coverage:  Static map + Claude AI fallback for unknown libraries
+  Coverage:  Static map + AI fallback (Gemini/Anthropic) for unknown libraries
 ```
 
 ### 3. Cache freshness hint
