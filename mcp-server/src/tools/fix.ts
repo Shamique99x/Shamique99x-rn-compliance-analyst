@@ -1,36 +1,22 @@
 import * as path from "path";
 import { FixResult, FixAllResult } from "../types";
-import { complianceScan } from "./scan";
-import { fixPageSize } from "../fixers/android/page-size-fixer";
-import { fixSdkVersions } from "../fixers/android/sdk-version-fixer";
-import { fixPrivacyManifest } from "../fixers/ios/privacy-manifest-fixer";
-import { fixDeploymentTarget } from "../fixers/ios/deployment-target-fixer";
+import { complianceScan }          from "./scan";
+import { loadPolicies }            from "../policies/loader";
+import { runFix }                  from "../engine/fix-runner";
 
-// Violations that must share a single fixer run are grouped under the same key.
-// This prevents the same file being written twice for ios-privacy-* violations.
-const FIXER_GROUP: Record<string, string> = {
-  "ios-privacy-manifest-exists": "ios-privacy-fixer",
-  "ios-privacy-required-reason-apis": "ios-privacy-fixer",
-};
-
-// SDK violations are handled as a trio — all three fixers are idempotent and
-// the results are indexed by stable position, so we run them together.
-const SDK_VIOLATION_IDS = new Set([
-  "android-target-sdk",
-  "android-agp-version",
-  "android-gradle-wrapper",
-]);
-
-const SINGLE_FIXER_MAP: Record<
-  string,
-  (projectPath: string) => FixResult | Promise<FixResult>
-> = {
-  "android-16kb-page-size": fixPageSize,
-  "ios-privacy-manifest-exists": fixPrivacyManifest,
-  "ios-privacy-required-reason-apis": fixPrivacyManifest,
-  "ios-min-deployment-target": fixDeploymentTarget,
-};
-
+/**
+ * Apply fixes for a given list of violation IDs.
+ *
+ * The engine reads the `fix` field from the policy JSON at runtime, so adding a
+ * new policy to the JSON (or refreshing from the remote cache) automatically
+ * makes it fixable — no code changes needed.
+ *
+ * Special cases retained:
+ *   ios-privacy-* violations are de-duplicated: running fixPrivacyManifest once
+ *   covers both "file exists" and "required reason APIs" policies.  The engine's
+ *   `privacy_manifest_append_apis` fix type delegates to the same fixer, so the
+ *   de-duplication guard below prevents writing the manifest twice in fix-all mode.
+ */
 export async function complianceFix(
   projectPath: string,
   violationIds: string[]
@@ -38,52 +24,28 @@ export async function complianceFix(
   const absPath = path.resolve(projectPath);
   const applied: FixResult[] = [];
   const skipped: string[] = [];
-  const seenGroups = new Set<string>();
 
-  // Run SDK fixers once if any SDK violation is in the list
-  const hasSdkViolation = violationIds.some((id) => SDK_VIOLATION_IDS.has(id));
-  if (hasSdkViolation) {
-    seenGroups.add("sdk-fixer");
-    try {
-      // fixSdkVersions returns exactly [targetSdk, agp, wrapper] — stable order, no filtering
-      const sdkResults = fixSdkVersions(absPath);
-      // Only push results that have actual changes (keeps the report clean)
-      applied.push(...sdkResults.filter((r) => r.changes.length > 0 || !r.success));
-    } catch (err) {
-      applied.push({
-        violation_id: "android-target-sdk",
-        success: false,
-        changes: [],
-        error: (err as Error).message,
-      });
-    }
-  }
+  // Merge all platform policy DBs into one lookup map  id → fix
+  const policyMap = buildPolicyMap();
+
+  // De-duplication: some violations share a fixer group (privacy manifest).
+  // Track which "fixer group" keys have already been executed.
+  const seenFixerGroups = new Set<string>();
 
   for (const id of violationIds) {
-    if (SDK_VIOLATION_IDS.has(id)) continue; // already handled above
-
-    const fixer = SINGLE_FIXER_MAP[id];
-    if (!fixer) {
+    const policy = policyMap.get(id);
+    if (!policy || !policy.fix) {
       skipped.push(id);
       continue;
     }
 
-    // Use explicit group key to avoid running the same fixer twice
+    // Group key: ios-privacy-* share a single fixer run
     const groupKey = FIXER_GROUP[id] ?? id;
-    if (seenGroups.has(groupKey)) continue;
-    seenGroups.add(groupKey);
+    if (seenFixerGroups.has(groupKey)) continue;
+    seenFixerGroups.add(groupKey);
 
-    try {
-      const result = await Promise.resolve(fixer(absPath));
-      applied.push(result);
-    } catch (err) {
-      applied.push({
-        violation_id: id,
-        success: false,
-        changes: [],
-        error: (err as Error).message,
-      });
-    }
+    const result = await runFix(absPath, id, policy.fix);
+    applied.push(result);
   }
 
   const allBackups = applied.flatMap((r) => r.changes.map((c) => c.backup_path).filter(Boolean));
@@ -91,10 +53,33 @@ export async function complianceFix(
 }
 
 export async function complianceFixAll(projectPath: string): Promise<FixAllResult> {
-  const scan = await complianceScan(projectPath);
+  const scan       = await complianceScan(projectPath);
   const fixableIds = scan.violations
     .filter((v) => v.auto_fixable)
     .map((v) => v.policy_id);
 
   return complianceFix(projectPath, fixableIds);
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+/**
+ * Both ios-privacy-* policies trigger `fixPrivacyManifest`, which handles both
+ * file creation and API-entry injection in a single pass.
+ * Running it twice would write the manifest file twice (needlessly).
+ */
+const FIXER_GROUP: Record<string, string> = {
+  "ios-privacy-manifest-exists":        "ios-privacy-fixer",
+  "ios-privacy-required-reason-apis":   "ios-privacy-fixer",
+};
+
+function buildPolicyMap() {
+  const map = new Map<string, { fix: import("../types").PolicyFix | null }>();
+  for (const platform of (["android", "ios"] as const)) {
+    const db = loadPolicies(platform);
+    for (const policy of db.policies) {
+      map.set(policy.id, { fix: policy.fix });
+    }
+  }
+  return map;
 }

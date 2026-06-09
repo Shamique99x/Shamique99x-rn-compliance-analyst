@@ -1,14 +1,12 @@
 import * as path from "path";
-import * as fs from "fs";
-import semver from "semver";
+import * as fs   from "fs";
+import semver    from "semver";
 import { Platform, ScanResult, Violation, LibUpgrade, ApkInspectionResult } from "../types";
-import { loadPolicies } from "../policies/loader";
-import { scanPageSize } from "../scanners/android/page-size";
-import { scanSdkVersions } from "../scanners/android/sdk-versions";
+import { loadPolicies }        from "../policies/loader";
+import { runCheck }            from "../engine/check-runner";
 import { scanPrivacyManifest } from "../scanners/ios/privacy-manifest";
-import { scanDeploymentTarget } from "../scanners/ios/deployment-target";
 import { findApk, inspectApk } from "../scanners/android/apk-inspector";
-import { resolveUpgrades } from "../scanners/android/lib-mapper";
+import { resolveUpgrades }     from "../scanners/android/lib-mapper";
 
 export async function complianceScan(
   projectPath: string,
@@ -21,39 +19,68 @@ export async function complianceScan(
 
   const violations: Violation[] = [];
 
-  if (platforms.includes("android")) {
-    violations.push(...scanPageSize(absPath));
-    violations.push(...scanSdkVersions(absPath));
+  // ── Engine-driven policy checks ─────────────────────────────────────────────
+  // All policies are evaluated by the JSON engine — no hardcoded scanner logic.
+  // This means updating min_value / min_version in the JSON (or the remote cache)
+  // takes effect immediately without any code changes.
+
+  for (const platform of platforms) {
+    const db = loadPolicies(platform);
+    for (const policy of db.policies) {
+      // privacy_required_reason_apis is handled by the custom source scanner below
+      if (policy.check.type === "privacy_required_reason_apis") continue;
+
+      const result = runCheck(absPath, policy.check);
+      if (!result.passed) {
+        violations.push({
+          policy_id:     policy.id,
+          policy_name:   policy.name,
+          platform:      policy.platform,
+          severity:      policy.severity,
+          auto_fixable:  policy.auto_fixable,
+          description:   policy.description,
+          docs_url:      policy.docs_url,
+          details:       result.details,
+          affected_files: result.affected_files,
+        });
+      }
+    }
   }
 
+  // ── Privacy manifest source scan (iOS) ────────────────────────────────────
+  // Complex source-code pattern matching cannot be expressed in JSON today —
+  // the custom scanner handles this policy and appends any violations it finds.
   if (platforms.includes("ios")) {
     violations.push(...(await scanPrivacyManifest(absPath)));
-    violations.push(...(await scanDeploymentTarget(absPath)));
   }
 
+  // ── Library upgrade suggestions ───────────────────────────────────────────
   const libraryUpgrades: LibUpgrade[] = collectLibraryUpgrades(absPath, violations, platforms);
+
   // Report the version of the first requested platform's policy DB
   const policiesVersion = loadPolicies(platforms[0] ?? "android").version;
 
-  // APK-level 16 KB inspection — runs only when a built APK exists.
-  // This catches misaligned third-party .so files that build-config checks miss.
+  // ── APK-level 16 KB inspection ────────────────────────────────────────────
+  // Catches misaligned third-party .so files that build-config checks miss.
   let apk_inspection: ApkInspectionResult | undefined;
   if (platforms.includes("android")) {
     const apkPath = findApk(absPath);
     if (apkPath) {
       apk_inspection = inspectApk(apkPath);
 
-      // Promote APK non-compliance to violations so it surfaces in the normal report
       if (!apk_inspection.compliant && !apk_inspection.error) {
         const byLibrary = apk_inspection.non_compliant
-          .map((lib) => `  • ${lib.abi}/${lib.name}\n${lib.issues.map((i) => `      – ${i}`).join("\n")}`)
+          .map(
+            (lib) =>
+              `  • ${lib.abi}/${lib.name}\n${lib.issues.map((i) => `      – ${i}`).join("\n")}`
+          )
           .join("\n");
 
         violations.push({
-          policy_id: "android-16kb-apk-verified",
-          policy_name: "16 KB Page Size — APK Verification",
-          platform: "android",
-          severity: "error",
+          policy_id:    "android-16kb-apk-verified",
+          policy_name:  "16 KB Page Size — APK Verification",
+          platform:     "android",
+          severity:     "error",
           auto_fixable: false,
           description:
             "One or more native libraries in the built APK are not 16 KB page-size " +
@@ -70,10 +97,8 @@ export async function complianceScan(
           ),
         });
 
-        // Resolve which npm packages need upgrading and merge into libraryUpgrades
         const apkUpgrades = await resolveUpgrades(apk_inspection.non_compliant, absPath);
         for (const upgrade of apkUpgrades) {
-          // Don't duplicate if the package is already flagged by a build-config check
           if (!libraryUpgrades.some((u) => u.name === upgrade.name)) {
             libraryUpgrades.push(upgrade);
           }
@@ -104,7 +129,7 @@ function collectLibraryUpgrades(
     devDependencies?: Record<string, string>;
   };
 
-  const allDeps = { ...(pkg.dependencies ?? {}), ...(pkg.devDependencies ?? {}) };
+  const allDeps   = { ...(pkg.dependencies ?? {}), ...(pkg.devDependencies ?? {}) };
   const upgradeMap = new Map<string, LibUpgrade>();
 
   for (const platform of platforms) {
@@ -125,11 +150,11 @@ function collectLibraryUpgrades(
             }
           } else {
             upgradeMap.set(req.name, {
-              name: req.name,
-              current_version: current,
-              min_version: req.min_version,
-              reason: req.reason,
-              required_by_policy_ids: [policy.id],
+              name:                    req.name,
+              current_version:         current,
+              min_version:             req.min_version,
+              reason:                  req.reason,
+              required_by_policy_ids:  [policy.id],
             });
           }
         }

@@ -41,10 +41,8 @@ const path = __importStar(require("path"));
 const fs = __importStar(require("fs"));
 const semver_1 = __importDefault(require("semver"));
 const loader_1 = require("../policies/loader");
-const page_size_1 = require("../scanners/android/page-size");
-const sdk_versions_1 = require("../scanners/android/sdk-versions");
+const check_runner_1 = require("../engine/check-runner");
 const privacy_manifest_1 = require("../scanners/ios/privacy-manifest");
-const deployment_target_1 = require("../scanners/ios/deployment-target");
 const apk_inspector_1 = require("../scanners/android/apk-inspector");
 const lib_mapper_1 = require("../scanners/android/lib-mapper");
 async function complianceScan(projectPath, platforms = ["android", "ios"]) {
@@ -53,25 +51,49 @@ async function complianceScan(projectPath, platforms = ["android", "ios"]) {
         throw new Error(`Project path not found: ${absPath}`);
     }
     const violations = [];
-    if (platforms.includes("android")) {
-        violations.push(...(0, page_size_1.scanPageSize)(absPath));
-        violations.push(...(0, sdk_versions_1.scanSdkVersions)(absPath));
+    // ── Engine-driven policy checks ─────────────────────────────────────────────
+    // All policies are evaluated by the JSON engine — no hardcoded scanner logic.
+    // This means updating min_value / min_version in the JSON (or the remote cache)
+    // takes effect immediately without any code changes.
+    for (const platform of platforms) {
+        const db = (0, loader_1.loadPolicies)(platform);
+        for (const policy of db.policies) {
+            // privacy_required_reason_apis is handled by the custom source scanner below
+            if (policy.check.type === "privacy_required_reason_apis")
+                continue;
+            const result = (0, check_runner_1.runCheck)(absPath, policy.check);
+            if (!result.passed) {
+                violations.push({
+                    policy_id: policy.id,
+                    policy_name: policy.name,
+                    platform: policy.platform,
+                    severity: policy.severity,
+                    auto_fixable: policy.auto_fixable,
+                    description: policy.description,
+                    docs_url: policy.docs_url,
+                    details: result.details,
+                    affected_files: result.affected_files,
+                });
+            }
+        }
     }
+    // ── Privacy manifest source scan (iOS) ────────────────────────────────────
+    // Complex source-code pattern matching cannot be expressed in JSON today —
+    // the custom scanner handles this policy and appends any violations it finds.
     if (platforms.includes("ios")) {
         violations.push(...(await (0, privacy_manifest_1.scanPrivacyManifest)(absPath)));
-        violations.push(...(await (0, deployment_target_1.scanDeploymentTarget)(absPath)));
     }
+    // ── Library upgrade suggestions ───────────────────────────────────────────
     const libraryUpgrades = collectLibraryUpgrades(absPath, violations, platforms);
     // Report the version of the first requested platform's policy DB
     const policiesVersion = (0, loader_1.loadPolicies)(platforms[0] ?? "android").version;
-    // APK-level 16 KB inspection — runs only when a built APK exists.
-    // This catches misaligned third-party .so files that build-config checks miss.
+    // ── APK-level 16 KB inspection ────────────────────────────────────────────
+    // Catches misaligned third-party .so files that build-config checks miss.
     let apk_inspection;
     if (platforms.includes("android")) {
         const apkPath = (0, apk_inspector_1.findApk)(absPath);
         if (apkPath) {
             apk_inspection = (0, apk_inspector_1.inspectApk)(apkPath);
-            // Promote APK non-compliance to violations so it surfaces in the normal report
             if (!apk_inspection.compliant && !apk_inspection.error) {
                 const byLibrary = apk_inspection.non_compliant
                     .map((lib) => `  • ${lib.abi}/${lib.name}\n${lib.issues.map((i) => `      – ${i}`).join("\n")}`)
@@ -92,10 +114,8 @@ async function complianceScan(projectPath, platforms = ["android", "ios"]) {
                         `Non-compliant (${apk_inspection.non_compliant.length}):\n${byLibrary}`,
                     affected_files: apk_inspection.non_compliant.map((lib) => `lib/${lib.abi}/${lib.name}`),
                 });
-                // Resolve which npm packages need upgrading and merge into libraryUpgrades
                 const apkUpgrades = await (0, lib_mapper_1.resolveUpgrades)(apk_inspection.non_compliant, absPath);
                 for (const upgrade of apkUpgrades) {
-                    // Don't duplicate if the package is already flagged by a build-config check
                     if (!libraryUpgrades.some((u) => u.name === upgrade.name)) {
                         libraryUpgrades.push(upgrade);
                     }
