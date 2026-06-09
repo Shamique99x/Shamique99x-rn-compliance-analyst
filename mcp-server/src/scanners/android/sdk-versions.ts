@@ -24,29 +24,42 @@ function checkSdkLevels(projectPath: string): Violation[] {
   const appBuildFile = path.join(projectPath, "android", "app", "build.gradle");
   const rootBuildFile = path.join(projectPath, "android", "build.gradle");
 
-  if (!fs.existsSync(appBuildFile)) return [];
+  const appExists = fs.existsSync(appBuildFile);
+  const rootExists = fs.existsSync(rootBuildFile);
 
-  const appContent = fs.readFileSync(appBuildFile, "utf-8");
+  if (!appExists && !rootExists) return [];
 
-  // Read ext properties from root build.gradle as fallback for rootProject.ext.* references
-  const rootExtProps = fs.existsSync(rootBuildFile)
-    ? extractExtBlock(fs.readFileSync(rootBuildFile, "utf-8"))
-    : {};
+  const appContent = appExists ? fs.readFileSync(appBuildFile, "utf-8") : "";
+  const rootContent = rootExists ? fs.readFileSync(rootBuildFile, "utf-8") : "";
 
-  const targetSdk = resolveIntProperty(appContent, "targetSdkVersion", rootExtProps);
-  const compileSdk = resolveIntProperty(appContent, "compileSdkVersion", rootExtProps);
+  // Read ext properties from root build.gradle for rootProject.ext.* references
+  const rootExtProps = rootExists ? extractExtBlock(rootContent) : {};
+
+  // Resolve each SDK property: check app/build.gradle first, then fall back to
+  // android/build.gradle.  Each check tries both the "Version" suffix (Groovy DSL)
+  // and the bare form (Kotlin DSL: compileSdk / targetSdk).
+  const targetSdk =
+    resolveIntProperty(appContent, "targetSdkVersion", rootExtProps) ??
+    resolveIntProperty(appContent, "targetSdk", rootExtProps) ??
+    resolveIntProperty(rootContent, "targetSdkVersion", rootExtProps) ??
+    resolveIntProperty(rootContent, "targetSdk", rootExtProps);
+  const compileSdk =
+    resolveIntProperty(appContent, "compileSdkVersion", rootExtProps) ??
+    resolveIntProperty(appContent, "compileSdk", rootExtProps) ??
+    resolveIntProperty(rootContent, "compileSdkVersion", rootExtProps) ??
+    resolveIntProperty(rootContent, "compileSdk", rootExtProps);
 
   const missing: string[] = [];
 
   if (targetSdk !== null && targetSdk < MIN_TARGET_SDK)
     missing.push(`targetSdkVersion is ${targetSdk}, must be >= ${MIN_TARGET_SDK}`);
   else if (targetSdk === null)
-    missing.push("targetSdkVersion not found in app/build.gradle or android/build.gradle ext block");
+    missing.push("targetSdkVersion not found in android/app/build.gradle or android/build.gradle");
 
   if (compileSdk !== null && compileSdk < MIN_COMPILE_SDK)
     missing.push(`compileSdkVersion is ${compileSdk}, must be >= ${MIN_COMPILE_SDK}`);
   else if (compileSdk === null)
-    missing.push("compileSdkVersion not found in app/build.gradle or android/build.gradle ext block");
+    missing.push("compileSdkVersion not found in android/app/build.gradle or android/build.gradle");
 
   if (missing.length === 0) return [];
 
@@ -60,7 +73,7 @@ function checkSdkLevels(projectPath: string): Violation[] {
       description: `Google Play requires targetSdkVersion >= ${MIN_TARGET_SDK} for all new submissions as of August 2025.`,
       docs_url: "https://developer.android.com/google/play/requirements/target-sdk",
       details: missing.join("; "),
-      affected_files: resolveAffectedFile(appContent, rootExtProps, rootBuildFile, appBuildFile, projectPath),
+      affected_files: resolveAffectedFile(appContent, rootContent, rootExtProps, rootBuildFile, appBuildFile, projectPath),
     },
   ];
 }
@@ -148,20 +161,20 @@ function resolveIntProperty(
   return null;
 }
 
-// Extracts key=value integer pairs from the ext { } block in root build.gradle
+// Extracts key=value integer pairs from ALL ext { } blocks in a build.gradle file.
+// Handles both top-level and indented ext blocks (e.g. inside buildscript { ext { } }).
 function extractExtBlock(rootContent: string): Record<string, number> {
   const result: Record<string, number> = {};
 
-  // Find the last ext { } block (the one in the top-level, not inside subprojects)
-  // We look for the standalone `ext {` that isn't inside subprojects { }
-  const extBlockMatch = rootContent.match(/^ext\s*\{([^}]+)\}/m);
-  if (!extBlockMatch) return result;
-
-  const block = extBlockMatch[1];
-  const lines = block.split("\n");
-  for (const line of lines) {
-    const kv = line.match(/(\w+)\s*=\s*(\d+)/);
-    if (kv) result[kv[1]] = parseInt(kv[2], 10);
+  // Find every `ext {` block regardless of indentation
+  const extBlockRegex = /\bext\s*\{([^}]+)\}/g;
+  let match: RegExpExecArray | null;
+  while ((match = extBlockRegex.exec(rootContent)) !== null) {
+    const block = match[1];
+    for (const line of block.split("\n")) {
+      const kv = line.match(/(\w+)\s*=\s*(\d+)/);
+      if (kv) result[kv[1]] = parseInt(kv[2], 10);
+    }
   }
 
   return result;
@@ -169,21 +182,36 @@ function extractExtBlock(rootContent: string): Record<string, number> {
 
 function resolveAffectedFile(
   appContent: string,
+  rootContent: string,
   rootExtProps: Record<string, number>,
   rootBuildFile: string,
   appBuildFile: string,
   projectPath: string
 ): string[] {
-  const files: string[] = [];
+  const sdkPropRegex = /(?:targetSdkVersion|compileSdkVersion|targetSdk|compileSdk)/;
 
+  // ext ref in app/build.gradle → root build file holds the value
   const usesExtRef =
-    /(?:targetSdkVersion|compileSdkVersion)\s+rootProject\.ext\./.test(appContent);
-
+    /(?:targetSdkVersion|compileSdkVersion|targetSdk|compileSdk)\s+rootProject\.ext\./.test(appContent);
   if (usesExtRef && Object.keys(rootExtProps).length > 0) {
-    files.push(path.relative(projectPath, rootBuildFile).replace(/\\/g, "/"));
-  } else {
-    files.push(path.relative(projectPath, appBuildFile).replace(/\\/g, "/"));
+    return [path.relative(projectPath, rootBuildFile).replace(/\\/g, "/")];
   }
 
+  // Direct declaration in app/build.gradle
+  if (appContent && sdkPropRegex.test(appContent)) {
+    return [path.relative(projectPath, appBuildFile).replace(/\\/g, "/")];
+  }
+
+  // Direct declaration in android/build.gradle (no app-level file or not found there)
+  if (rootContent && sdkPropRegex.test(rootContent)) {
+    return [path.relative(projectPath, rootBuildFile).replace(/\\/g, "/")];
+  }
+
+  // Fallback: report both files so the user knows where to look
+  const files: string[] = [];
+  if (fs.existsSync(appBuildFile))
+    files.push(path.relative(projectPath, appBuildFile).replace(/\\/g, "/"));
+  if (fs.existsSync(rootBuildFile))
+    files.push(path.relative(projectPath, rootBuildFile).replace(/\\/g, "/"));
   return files;
 }
