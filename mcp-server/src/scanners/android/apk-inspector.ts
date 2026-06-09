@@ -22,6 +22,10 @@ import * as path from "path";
 import AdmZip    from "adm-zip";
 import { parseElf, PAGE_16KB } from "./elf-parser";
 
+// 32-bit ABIs use 4 KB pages by CPU architecture — the 16 KB requirement
+// only applies to 64-bit ABIs.  Never flag these as non-compliant.
+const THIRTY_TWO_BIT_ABIS = new Set(["armeabi-v7a", "armeabi", "x86", "mips"]);
+
 // ── Types ────────────────────────────────────────────────────────────────────
 
 export interface NativeLibraryResult {
@@ -123,7 +127,9 @@ export function inspectApk(apkPath: string): ApkInspectionResult {
       const info  = parseElf(data);
       if (info) {
         load_alignment = info.minLoadAlignment;
-        if (load_alignment < PAGE_16KB) {
+        // 16 KB page-size requirement only applies to 64-bit ABIs.
+        // 32-bit ABIs (armeabi-v7a, x86, etc.) intentionally use 4 KB pages.
+        if (!THIRTY_TWO_BIT_ABIS.has(abi) && load_alignment < PAGE_16KB) {
           issues.push(
             `PT_LOAD alignment is ${load_alignment} bytes ` +
             `(0x${load_alignment.toString(16).toUpperCase()}) — ` +
