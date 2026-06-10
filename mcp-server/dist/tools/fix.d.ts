@@ -13,5 +13,4 @@ import { FixAllResult } from "../types";
  *   de-duplication guard below prevents writing the manifest twice in fix-all mode.
  */
 export declare function complianceFix(projectPath: string, violationIds: string[]): Promise<FixAllResult>;
-export declare function complianceFixAll(projectPath: string): Promise<FixAllResult>;
 //# sourceMappingURL=fix.d.ts.map

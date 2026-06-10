@@ -1,7 +1,6 @@
 import * as path from "path";
 import { FixResult, FixAllResult } from "../types";
-import { complianceScan }          from "./scan";
-import { loadPolicies }            from "../policies/loader";
+import { loadPolicies }            from "../services/policy/loader";
 import { runFix }                  from "../engine/fix-runner";
 
 /**
@@ -50,15 +49,6 @@ export async function complianceFix(
 
   const allBackups = applied.flatMap((r) => r.changes.map((c) => c.backup_path).filter(Boolean));
   return { applied, skipped, backup_paths: allBackups };
-}
-
-export async function complianceFixAll(projectPath: string): Promise<FixAllResult> {
-  const scan       = await complianceScan(projectPath);
-  const fixableIds = scan.violations
-    .filter((v) => v.auto_fixable)
-    .map((v) => v.policy_id);
-
-  return complianceFix(projectPath, fixableIds);
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

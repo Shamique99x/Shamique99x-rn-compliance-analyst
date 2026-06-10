@@ -5,13 +5,14 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { complianceScan } from "./tools/scan";
-import { complianceFix, complianceFixAll } from "./tools/fix";
-import { complianceRefreshPolicies } from "./tools/refresh-policies";
-import { upgradeLibraries } from "./tools/upgrade";
-import { inspectApkTool }  from "./tools/inspect-apk";
-import { getPolicyInfo }   from "./tools/policy-info";
-import { isCacheStale } from "./policies/cache";
+import { complianceScan }            from "./tools/scan";
+import { complianceFix }             from "./tools/fix";
+import { complianceFixAll }          from "./tools/fix-all";
+import { complianceRefreshPolicies } from "./tools/refresh";
+import { upgradeLibraries }          from "./tools/upgrade-libs";
+import { inspectApkTool }            from "./tools/inspect-apk";
+import { getPolicyInfo }             from "./tools/policy-info";
+import { getCacheStatus }            from "./tools/cache-status";
 
 const server = new Server(
   { name: "claude-rn-compliance", version: "1.0.0" },
@@ -194,10 +195,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "compliance_cache_status": {
-        const status = {
-          android: { stale: isCacheStale("android") },
-          ios: { stale: isCacheStale("ios") },
-        };
+        const status = getCacheStatus();
         return { content: [{ type: "text", text: JSON.stringify(status, null, 2) }] };
       }
 

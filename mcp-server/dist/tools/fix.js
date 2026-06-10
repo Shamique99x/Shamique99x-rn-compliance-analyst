@@ -34,10 +34,8 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.complianceFix = complianceFix;
-exports.complianceFixAll = complianceFixAll;
 const path = __importStar(require("path"));
-const scan_1 = require("./scan");
-const loader_1 = require("../policies/loader");
+const loader_1 = require("../services/policy/loader");
 const fix_runner_1 = require("../engine/fix-runner");
 /**
  * Apply fixes for a given list of violation IDs.
@@ -77,13 +75,6 @@ async function complianceFix(projectPath, violationIds) {
     }
     const allBackups = applied.flatMap((r) => r.changes.map((c) => c.backup_path).filter(Boolean));
     return { applied, skipped, backup_paths: allBackups };
-}
-async function complianceFixAll(projectPath) {
-    const scan = await (0, scan_1.complianceScan)(projectPath);
-    const fixableIds = scan.violations
-        .filter((v) => v.auto_fixable)
-        .map((v) => v.policy_id);
-    return complianceFix(projectPath, fixableIds);
 }
 // ── Helpers ───────────────────────────────────────────────────────────────────
 /**

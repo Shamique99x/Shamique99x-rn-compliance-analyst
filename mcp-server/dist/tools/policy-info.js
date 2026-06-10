@@ -43,7 +43,7 @@ exports.getPolicyInfo = getPolicyInfo;
 const fs = __importStar(require("fs"));
 const os = __importStar(require("os"));
 const path = __importStar(require("path"));
-const loader_1 = require("../policies/loader");
+const loader_1 = require("../services/policy/loader");
 // ── Cache metadata reader ─────────────────────────────────────────────────────
 const CACHE_DIR = process.env.PLUGIN_CACHE_DIR ??
     path.join(os.homedir(), ".claude", "compliance-policy-cache");

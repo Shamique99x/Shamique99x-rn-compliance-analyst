@@ -40,7 +40,7 @@ exports.complianceScan = complianceScan;
 const path = __importStar(require("path"));
 const fs = __importStar(require("fs"));
 const semver_1 = __importDefault(require("semver"));
-const loader_1 = require("../policies/loader");
+const loader_1 = require("../services/policy/loader");
 const check_runner_1 = require("../engine/check-runner");
 const privacy_manifest_1 = require("../scanners/ios/privacy-manifest");
 const apk_inspector_1 = require("../scanners/android/apk-inspector");
@@ -128,6 +128,7 @@ async function complianceScan(projectPath, platforms = ["android", "ios"]) {
         library_upgrades_required: libraryUpgrades,
         scan_time: new Date().toISOString(),
         policies_version: policiesVersion,
+        project_type: "react-native",
         apk_inspection,
     };
 }

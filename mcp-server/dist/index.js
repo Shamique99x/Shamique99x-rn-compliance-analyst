@@ -6,11 +6,12 @@ const stdio_js_1 = require("@modelcontextprotocol/sdk/server/stdio.js");
 const types_js_1 = require("@modelcontextprotocol/sdk/types.js");
 const scan_1 = require("./tools/scan");
 const fix_1 = require("./tools/fix");
-const refresh_policies_1 = require("./tools/refresh-policies");
-const upgrade_1 = require("./tools/upgrade");
+const fix_all_1 = require("./tools/fix-all");
+const refresh_1 = require("./tools/refresh");
+const upgrade_libs_1 = require("./tools/upgrade-libs");
 const inspect_apk_1 = require("./tools/inspect-apk");
 const policy_info_1 = require("./tools/policy-info");
-const cache_1 = require("./policies/cache");
+const cache_status_1 = require("./tools/cache-status");
 const server = new index_js_1.Server({ name: "claude-rn-compliance", version: "1.0.0" }, { capabilities: { tools: {} } });
 server.setRequestHandler(types_js_1.ListToolsRequestSchema, async () => ({
     tools: [
@@ -158,18 +159,15 @@ server.setRequestHandler(types_js_1.CallToolRequestSchema, async (request) => {
                 return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
             }
             case "compliance_fix_all": {
-                const result = await (0, fix_1.complianceFixAll)(args["projectPath"]);
+                const result = await (0, fix_all_1.complianceFixAll)(args["projectPath"]);
                 return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
             }
             case "compliance_refresh_policies": {
-                const result = await (0, refresh_policies_1.complianceRefreshPolicies)(args["remote_url"], args["platforms"]);
+                const result = await (0, refresh_1.complianceRefreshPolicies)(args["remote_url"], args["platforms"]);
                 return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
             }
             case "compliance_cache_status": {
-                const status = {
-                    android: { stale: (0, cache_1.isCacheStale)("android") },
-                    ios: { stale: (0, cache_1.isCacheStale)("ios") },
-                };
+                const status = (0, cache_status_1.getCacheStatus)();
                 return { content: [{ type: "text", text: JSON.stringify(status, null, 2) }] };
             }
             case "compliance_inspect_apk": {
@@ -181,7 +179,7 @@ server.setRequestHandler(types_js_1.CallToolRequestSchema, async (request) => {
                 return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
             }
             case "compliance_upgrade_libraries": {
-                const result = (0, upgrade_1.upgradeLibraries)(args["projectPath"], args["upgrades"]);
+                const result = (0, upgrade_libs_1.upgradeLibraries)(args["projectPath"], args["upgrades"]);
                 return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
             }
             default:

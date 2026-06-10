@@ -2,7 +2,7 @@ import * as path from "path";
 import * as fs   from "fs";
 import semver    from "semver";
 import { Platform, ScanResult, Violation, LibUpgrade, ApkInspectionResult } from "../types";
-import { loadPolicies }        from "../policies/loader";
+import { loadPolicies }        from "../services/policy/loader";
 import { runCheck }            from "../engine/check-runner";
 import { scanPrivacyManifest } from "../scanners/ios/privacy-manifest";
 import { findApk, inspectApk } from "../scanners/android/apk-inspector";
@@ -112,6 +112,7 @@ export async function complianceScan(
     library_upgrades_required: libraryUpgrades,
     scan_time: new Date().toISOString(),
     policies_version: policiesVersion,
+    project_type: "react-native" as const,
     apk_inspection,
   };
 }

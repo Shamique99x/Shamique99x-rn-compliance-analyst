@@ -1,5 +1,5 @@
 import * as https from "https";
-import { PolicyDatabase, Platform, PolicyRefreshResult } from "../types";
+import { PolicyDatabase, Platform, PolicyRefreshResult } from "../../types";
 import { writeCache, readCache } from "./cache";
 
 const DEFAULT_BASE_URL =

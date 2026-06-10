@@ -1,0 +1,69 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/BUS-AS/BUS-Apps-Compliance/schemas/native-lib-map.schema.json",
+  "title": "NativeLibMapDatabase",
+  "description": "Schema for the native .so library → npm package mapping file (native-lib-map.json).",
+  "type": "object",
+  "required": ["version", "mappings"],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Calendar-based version label for this mapping set, e.g. '2025-Q2'.",
+      "examples": ["2025-Q2"]
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date",
+      "description": "ISO date when this file was last updated."
+    },
+    "description": {
+      "type": "string",
+      "description": "Human-readable description of the mapping file's purpose."
+    },
+    "mappings": {
+      "type": "array",
+      "description": "List of native library → npm package mappings.",
+      "items": { "$ref": "#/definitions/LibMapping" }
+    }
+  },
+  "definitions": {
+    "LibMapping": {
+      "type": "object",
+      "required": ["so_patterns", "npm_packages", "min_version", "reason", "docs_url", "confidence"],
+      "additionalProperties": false,
+      "properties": {
+        "so_patterns": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Substrings to match against .so filenames (case-insensitive).",
+          "minItems": 1
+        },
+        "npm_packages": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "npm package name(s) that ship these native libraries.",
+          "minItems": 1
+        },
+        "min_version": {
+          "type": "string",
+          "description": "Minimum npm package version that ships 16 KB page-aligned binaries."
+        },
+        "reason": {
+          "type": "string",
+          "description": "Explanation of why this version is the minimum compliant version."
+        },
+        "docs_url": {
+          "type": "string",
+          "format": "uri",
+          "description": "Link to the release note or documentation confirming compliance."
+        },
+        "confidence": {
+          "type": "string",
+          "enum": ["confirmed", "community-reported", "estimated"],
+          "description": "How certain we are about this minimum version."
+        }
+      }
+    }
+  }
+}

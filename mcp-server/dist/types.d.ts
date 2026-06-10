@@ -63,11 +63,13 @@ export interface ApkInspectionResult {
     compliant: boolean;
     error?: string;
 }
+export type ProjectType = "react-native" | "capacitor" | "hybrid" | "unknown";
 export interface ScanResult {
     violations: Violation[];
     library_upgrades_required: LibUpgrade[];
     scan_time: string;
     policies_version: string;
+    project_type: ProjectType;
     /** Present when a built APK was found and inspected for native library compliance. */
     apk_inspection?: ApkInspectionResult;
 }
