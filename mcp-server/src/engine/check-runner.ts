@@ -157,10 +157,31 @@ function checkGradleIntProperty(projectPath: string, check: PolicyCheck): CheckR
     if (!fs.existsSync(fullPath)) continue;
 
     const content = fs.readFileSync(fullPath, "utf-8");
-    const match   = content.match(new RegExp(`${escapeRegex(property)}\\s*(?:[=:\\s])\\s*(\\d+)`));
-    if (!match) continue;
 
-    const value = parseInt(match[1], 10);
+    // Pass 1: prefer `property = value` form (used in Gradle ext{} blocks).
+    // This avoids a false match on DSL-block defaults like `compileSdkVersion 34`
+    // inside subprojects{} that appear before the authoritative ext{} value in
+    // the same root build.gradle.
+    const strictMatch = content.match(
+      new RegExp(`${escapeRegex(property)}\\s*=\\s*(\\d+)`)
+    );
+    if (strictMatch) {
+      const value = parseInt(strictMatch[1], 10);
+      if (value >= minValue) return { passed: true, details: "", affected_files: [] };
+      return {
+        passed: false,
+        details: `${property} is ${value} in ${candidate}, must be >= ${minValue}.`,
+        affected_files: [candidate],
+      };
+    }
+
+    // Pass 2: fall back to space / colon DSL syntax (e.g. `compileSdkVersion 35`)
+    const looseMatch = content.match(
+      new RegExp(`${escapeRegex(property)}\\s*(?:[:\\s])\\s*(\\d+)`)
+    );
+    if (!looseMatch) continue;
+
+    const value = parseInt(looseMatch[1], 10);
     if (value >= minValue) return { passed: true, details: "", affected_files: [] };
     return {
       passed: false,

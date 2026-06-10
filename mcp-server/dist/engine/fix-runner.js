@@ -214,10 +214,26 @@ function applyGradleIntPropertySet(projectPath, fix) {
         if (!fs.existsSync(fullPath))
             continue;
         const content = fs.readFileSync(fullPath, "utf-8");
-        const regex = new RegExp(`(${escapeRegex(property)}\\s*(?:[=:\\s])\\s*)\\d+`);
-        if (!regex.test(content))
+        // Pass 1: prefer `property = value` form (Gradle ext{} block assignment).
+        // This avoids accidentally updating the DSL-block default in subprojects{}
+        // instead of the authoritative ext{} definition.
+        const strictRegex = new RegExp(`(${escapeRegex(property)}\\s*=\\s*)\\d+`);
+        if (strictRegex.test(content)) {
+            const newContent = content.replace(strictRegex, `$1${value}`);
+            if (newContent === content)
+                return []; // already the right value
+            const backup = (0, utils_1.backupAndWrite)(fullPath, newContent);
+            return [{
+                    file: candidate,
+                    description: `Set ${property} to ${value}`,
+                    backup_path: backup,
+                }];
+        }
+        // Pass 2: fall back to space / colon DSL syntax (e.g. `compileSdkVersion 35`)
+        const looseRegex = new RegExp(`(${escapeRegex(property)}\\s*(?:[:\\s])\\s*)\\d+`);
+        if (!looseRegex.test(content))
             continue; // property not in this file
-        const newContent = content.replace(regex, `$1${value}`);
+        const newContent = content.replace(looseRegex, `$1${value}`);
         if (newContent === content)
             return []; // already the right value
         const backup = (0, utils_1.backupAndWrite)(fullPath, newContent);
