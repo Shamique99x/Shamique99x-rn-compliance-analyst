@@ -5,7 +5,7 @@ import { Platform, ScanResult, Violation, LibUpgrade, ApkInspectionResult } from
 import { loadPolicies }        from "../policies/loader";
 import { runCheck }            from "../engine/check-runner";
 import { scanPrivacyManifest } from "../scanners/ios/privacy-manifest";
-import { findApk, inspectApk } from "../scanners/android/apk-inspector";
+import { findApk, inspectApk, checkApkStaleness } from "../scanners/android/apk-inspector";
 import { resolveUpgrades }     from "../scanners/android/lib-mapper";
 
 export async function complianceScan(
@@ -67,6 +67,14 @@ export async function complianceScan(
     const apkPath = findApk(absPath);
     if (apkPath) {
       apk_inspection = inspectApk(apkPath);
+
+      // Warn when the APK is older than build config files — its ELF results
+      // reflect the pre-fix binaries and should not be trusted.
+      const staleness = checkApkStaleness(apkPath, absPath);
+      if (staleness.stale) {
+        apk_inspection.stale = true;
+        apk_inspection.stale_reason = staleness.reason;
+      }
 
       if (!apk_inspection.compliant && !apk_inspection.error) {
         const byLibrary = apk_inspection.non_compliant

@@ -70,6 +70,11 @@ export interface ApkInspectionResult {
   libraries_checked: number;
   non_compliant: NativeLibraryResult[];
   compliant: boolean;
+  /** True when the APK is older than one or more build config files.
+   *  ELF results are still shown but should not be trusted until rebuilt. */
+  stale?: boolean;
+  /** Which build file is newer than the APK, e.g. "android/app/build.gradle" */
+  stale_reason?: string;
   error?: string;
 }
 

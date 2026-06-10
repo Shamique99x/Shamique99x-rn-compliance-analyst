@@ -47,6 +47,11 @@ export interface ApkInspectionResult {
   libraries_checked: number;
   non_compliant: NativeLibraryResult[];
   compliant: boolean;
+  /** True when the APK is older than one or more build config files.
+   *  ELF results are still shown but cannot be trusted until rebuilt. */
+  stale?: boolean;
+  /** Which build file is newer than the APK */
+  stale_reason?: string;
   /** set when the APK could not be opened or read */
   error?: string;
 }
@@ -161,4 +166,42 @@ export function inspectApk(apkPath: string): ApkInspectionResult {
     non_compliant: nonCompliant,
     compliant: nonCompliant.length === 0,
   };
+}
+
+// ── Staleness check ───────────────────────────────────────────────────────────
+// Compares the APK's modification time against key build config files.
+// If any config file is newer than the APK the result cannot be trusted —
+// the project was modified after the APK was built.
+
+const STALE_CHECK_FILES = [
+  "android/app/build.gradle",
+  "android/build.gradle",
+  "android/gradle.properties",
+  "android/app/src/main/cpp/CMakeLists.txt",
+  "android/app/CMakeLists.txt",
+];
+
+export function checkApkStaleness(
+  apkPath: string,
+  projectPath: string
+): { stale: boolean; reason?: string } {
+  let apkMtime: number;
+  try {
+    apkMtime = fs.statSync(apkPath).mtimeMs;
+  } catch {
+    return { stale: false }; // can't stat the APK — don't block the result
+  }
+
+  for (const rel of STALE_CHECK_FILES) {
+    const full = path.join(projectPath, rel);
+    if (!fs.existsSync(full)) continue;
+    try {
+      const fileMtime = fs.statSync(full).mtimeMs;
+      if (fileMtime > apkMtime) {
+        return { stale: true, reason: `${rel} was modified after the APK was built — rebuild required` };
+      }
+    } catch { /* skip unreadable */ }
+  }
+
+  return { stale: false };
 }
