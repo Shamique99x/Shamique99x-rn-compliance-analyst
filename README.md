@@ -8,7 +8,7 @@ Scan and auto-fix Android/iOS App Store policy violations directly from Claude C
 |----------|--------|----------|
 | Android | 16 KB page size alignment (Android 15+) | Yes |
 | Android | targetSdkVersion / compileSdkVersion ≥ 35 | Yes |
-| Android | Android Gradle Plugin ≥ 8.3 | Yes |
+| Android | Android Gradle Plugin ≥ 8.5.1 | Yes |
 | Android | Gradle wrapper ≥ 8.6 | Yes |
 | iOS | PrivacyInfo.xcprivacy exists | Yes |
 | iOS | Required Reason APIs declared in privacy manifest | Yes |
@@ -164,9 +164,12 @@ claude-rn-compliance/
 │   ├── dist/                     ← Compiled JS (committed)
 │   ├── src/
 │   │   ├── index.ts              ← MCP server entry point
+│   │   ├── engine/               ← JSON-driven policy engine
+│   │   │   ├── check-runner.ts   ← interprets policy `check` field at runtime
+│   │   │   └── fix-runner.ts     ← interprets policy `fix` field at runtime
 │   │   ├── tools/                ← scan, fix, upgrade, inspect-apk, policy-info
-│   │   ├── scanners/             ← per-policy violation detectors
-│   │   ├── fixers/               ← per-policy auto-fixers
+│   │   ├── scanners/             ← custom scanners (APK ELF, privacy manifest source scan)
+│   │   ├── fixers/               ← custom fixers (privacy manifest creation/injection)
 │   │   └── policies/             ← cache / loader / fetcher
 │   └── policies/
 │       ├── android.json          ← Android policy rules
@@ -178,8 +181,34 @@ claude-rn-compliance/
 
 ## Adding new policies
 
-1. Add the policy entry to `mcp-server/policies/android.json` or `ios.json`
-2. Create a scanner in `src/scanners/<platform>/`
-3. Create a fixer in `src/fixers/<platform>/` (if auto-fixable)
-4. Register the fixer in `src/tools/fix.ts`
-5. Run `npm run build` inside `mcp-server/` and commit `dist/`
+The plugin uses a JSON-driven policy engine — for any policy whose `check` and `fix`
+types are already supported by the engine, **no code changes are needed**. Just update
+the JSON.
+
+### Standard policy (JSON only)
+
+1. Add the policy entry to `mcp-server/policies/android.json` or `ios.json`, including
+   `check` and `fix` fields using the supported types below
+2. Run `npm run build` inside `mcp-server/` and commit `dist/`
+
+That's it. The engine picks up the new policy automatically on the next scan.
+
+**Supported `check` types:** `composite`, `file_exists`, `file_contains`,
+`gradle_int_property`, `gradle_cmake_arg`, `gradle_classpath_version`,
+`properties_version`, `podfile_platform_version`, `pbxproj_property`,
+`xcode_version_file`, `package_json_min_version`
+
+**Supported `fix` types:** `composite`, `properties_set`, `gradle_cmake_arg_append`,
+`cmake_linker_flag`, `gradle_int_property_set`, `gradle_classpath_version_set`,
+`create_file`, `privacy_manifest_append_apis`, `podfile_platform_set`,
+`pbxproj_property_set`
+
+### Custom policy (requires code)
+
+Only needed if the check or fix logic cannot be expressed with the types above
+(e.g. source-code pattern scanning like the privacy manifest required-reason check):
+
+1. Add the policy entry to the relevant JSON file
+2. Add a scanner in `src/scanners/<platform>/` and call it from `src/tools/scan.ts`
+3. Add a fixer in `src/fixers/<platform>/` (if auto-fixable) and call it from `src/tools/fix.ts`
+4. Run `npm run build` inside `mcp-server/` and commit `dist/`
