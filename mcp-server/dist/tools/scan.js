@@ -94,13 +94,6 @@ async function complianceScan(projectPath, platforms = ["android", "ios"]) {
         const apkPath = (0, apk_inspector_1.findApk)(absPath);
         if (apkPath) {
             apk_inspection = (0, apk_inspector_1.inspectApk)(apkPath);
-            // Warn when the APK is older than build config files — its ELF results
-            // reflect the pre-fix binaries and should not be trusted.
-            const staleness = (0, apk_inspector_1.checkApkStaleness)(apkPath, absPath);
-            if (staleness.stale) {
-                apk_inspection.stale = true;
-                apk_inspection.stale_reason = staleness.reason;
-            }
             if (!apk_inspection.compliant && !apk_inspection.error) {
                 const byLibrary = apk_inspection.non_compliant
                     .map((lib) => `  • ${lib.abi}/${lib.name}\n${lib.issues.map((i) => `      – ${i}`).join("\n")}`)

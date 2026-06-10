@@ -56,7 +56,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.findApk = findApk;
 exports.inspectApk = inspectApk;
-exports.checkApkStaleness = checkApkStaleness;
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const adm_zip_1 = __importDefault(require("adm-zip"));
@@ -163,38 +162,5 @@ function inspectApk(apkPath) {
         non_compliant: nonCompliant,
         compliant: nonCompliant.length === 0,
     };
-}
-// ── Staleness check ───────────────────────────────────────────────────────────
-// Compares the APK's modification time against key build config files.
-// If any config file is newer than the APK the result cannot be trusted —
-// the project was modified after the APK was built.
-const STALE_CHECK_FILES = [
-    "android/app/build.gradle",
-    "android/build.gradle",
-    "android/gradle.properties",
-    "android/app/src/main/cpp/CMakeLists.txt",
-    "android/app/CMakeLists.txt",
-];
-function checkApkStaleness(apkPath, projectPath) {
-    let apkMtime;
-    try {
-        apkMtime = fs.statSync(apkPath).mtimeMs;
-    }
-    catch {
-        return { stale: false }; // can't stat the APK — don't block the result
-    }
-    for (const rel of STALE_CHECK_FILES) {
-        const full = path.join(projectPath, rel);
-        if (!fs.existsSync(full))
-            continue;
-        try {
-            const fileMtime = fs.statSync(full).mtimeMs;
-            if (fileMtime > apkMtime) {
-                return { stale: true, reason: `${rel} was modified after the APK was built — rebuild required` };
-            }
-        }
-        catch { /* skip unreadable */ }
-    }
-    return { stale: false };
 }
 //# sourceMappingURL=apk-inspector.js.map

@@ -34,18 +34,9 @@ export interface ApkInspectionResult {
     libraries_checked: number;
     non_compliant: NativeLibraryResult[];
     compliant: boolean;
-    /** True when the APK is older than one or more build config files.
-     *  ELF results are still shown but cannot be trusted until rebuilt. */
-    stale?: boolean;
-    /** Which build file is newer than the APK */
-    stale_reason?: string;
     /** set when the APK could not be opened or read */
     error?: string;
 }
 export declare function findApk(projectPath: string): string | null;
 export declare function inspectApk(apkPath: string): ApkInspectionResult;
-export declare function checkApkStaleness(apkPath: string, projectPath: string): {
-    stale: boolean;
-    reason?: string;
-};
 //# sourceMappingURL=apk-inspector.d.ts.map
