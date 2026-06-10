@@ -214,6 +214,7 @@ function applyGradleIntPropertySet(
   const candidates = unique([
     "android/variables.gradle",
     file,
+    "android/build.gradle",
     "android/app/build.gradle",
   ]);
 
