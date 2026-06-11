@@ -22,13 +22,13 @@ Scan and auto-fix Android/iOS App Store policy violations directly from Claude C
 ### 1. Clone the repo
 
 ```bash
-git clone https://github.com/Shamique99x/claude-rn-compliance
+git clone https://github.com/Shamique99x/rn-compliance-analyst
 ```
 
 ### 2. Install dependencies
 
 ```bash
-cd claude-rn-compliance/mcp-server
+cd rn-compliance-analyst/mcp-server
 npm install
 ```
 
@@ -40,13 +40,13 @@ The compiled `dist/` is already included — no build step needed.
 
 ```bash
 cd /path/to/your-rn-project
-claude mcp add --scope project rn-compliance node "/absolute/path/to/claude-rn-compliance/mcp-server/dist/index.js" --env POLICIES_DIR="/absolute/path/to/claude-rn-compliance/mcp-server/policies"
+claude mcp add --scope project rn-compliance node "/absolute/path/to/rn-compliance-analyst/mcp-server/dist/index.js" --env POLICIES_DIR="/absolute/path/to/rn-compliance-analyst/mcp-server/policies"
 ```
 
 **Global** (active in all projects):
 
 ```bash
-claude mcp add rn-compliance node "/absolute/path/to/claude-rn-compliance/mcp-server/dist/index.js" --env POLICIES_DIR="/absolute/path/to/claude-rn-compliance/mcp-server/policies"
+claude mcp add rn-compliance node "/absolute/path/to/rn-compliance-analyst/mcp-server/dist/index.js" --env POLICIES_DIR="/absolute/path/to/rn-compliance-analyst/mcp-server/policies"
 ```
 
 ### 4. Verify
@@ -57,7 +57,7 @@ Open a Claude Code chat inside your project and run:
 /mcp
 ```
 
-You should see `rn-compliance` listed as connected.
+You should see `rn-compliance-analyst` listed as connected.
 
 ---
 
@@ -124,20 +124,19 @@ compliance_inspect_apk projectPath="/path/to/my-rn-app"
 ## Optional: AI-powered unknown library identification
 
 When inspecting APKs, the plugin can identify unknown native libraries using AI.
-Add one of the following in plugin settings (or as env vars):
+Add the following in plugin settings (or as an env var):
 
-| Key | Source | Cost |
-|-----|--------|------|
-| `ANTHROPIC_API_KEY` | console.anthropic.com | Paid |
-| `GEMINI_API_KEY` | aistudio.google.com | Free tier available |
+| Key | Source |
+|-----|--------|
+| `ANTHROPIC_API_KEY` | console.anthropic.com |
 
-If neither key is set, unrecognised libraries are flagged for manual review.
+If the key is not set, unrecognised libraries are flagged for manual review.
 
 ---
 
 ## Policy auto-updates
 
-Policy thresholds are fetched from the official Android/iOS developer docs weekly via GitHub Actions and committed to this repo. The plugin pulls the latest from GitHub every 24 hours automatically.
+Policy thresholds are fetched from the official Android/iOS developer docs **every Sunday** via GitHub Actions and committed to this repo. The plugin pulls the latest from GitHub every 24 hours automatically.
 
 To force a refresh:
 ```
@@ -149,7 +148,7 @@ compliance_refresh_policies
 ## Project structure
 
 ```
-claude-rn-compliance/
+rn-compliance-analyst/
 ├── .claude-plugin/
 │   └── plugin.json               ← Plugin manifest
 ├── .mcp.json                     ← MCP server wiring
@@ -170,7 +169,9 @@ claude-rn-compliance/
 │   │   ├── tools/                ← scan, fix, upgrade, inspect-apk, policy-info
 │   │   ├── scanners/             ← custom scanners (APK ELF, privacy manifest source scan)
 │   │   ├── fixers/               ← custom fixers (privacy manifest creation/injection)
-│   │   └── policies/             ← cache / loader / fetcher
+│   │   ├── services/policy/      ← cache / loader / fetcher
+│   │   ├── registry/             ← scanner + fixer registries
+│   │   └── reporters/            ← JSON and markdown output formatters
 │   └── policies/
 │       ├── android.json          ← Android policy rules
 │       ├── ios.json              ← iOS policy rules

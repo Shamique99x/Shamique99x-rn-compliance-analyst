@@ -11,9 +11,7 @@
  *    Fast, offline, zero API cost.
  *
  * 2. Claude fallback — any .so not matched by the static map is sent to
- *    claude-haiku in a single batch call.  Claude draws on its training data
- *    about the React Native ecosystem to identify the npm package and the
- *    minimum version that ships 16 KB-aligned binaries.  Results are marked
+ *    claude-haiku in a single batch call.  Results are marked
  *    confidence="ai-identified" so developers know to verify.
  *    Requires ANTHROPIC_API_KEY.  Skipped gracefully if the key is absent.
  */
@@ -88,17 +86,13 @@ function readProjectDeps(projectPath) {
     }
 }
 /**
- * Ask Claude to identify npm packages and minimum 16 KB-compliant versions
- * for a batch of unknown .so filenames.  Returns an empty array if
- * ANTHROPIC_API_KEY is not set or the call fails.
- */
-/**
- * AI fallback — tries Anthropic first, then Gemini, skips gracefully if neither key is set.
+ * AI fallback — uses Anthropic (claude-haiku-4-5).
+ * Skipped gracefully if ANTHROPIC_API_KEY is not set or the call fails.
  */
 async function lookupWithAI(soNames) {
     if (soNames.length === 0)
         return [];
-    if (!process.env.ANTHROPIC_API_KEY && !process.env.GEMINI_API_KEY)
+    if (!process.env.ANTHROPIC_API_KEY)
         return [];
     const prompt = `You are an expert on the React Native ecosystem and Android native library packaging.
 
@@ -116,46 +110,16 @@ Each element must be one of:
 Libraries to identify:
 ${soNames.map((n) => `  - ${n}`).join("\n")}`;
     try {
-        let raw;
-        if (process.env.ANTHROPIC_API_KEY) {
-            const client = new sdk_1.default();
-            const message = await client.messages.create({
-                model: "claude-haiku-4-5",
-                max_tokens: 1024,
-                messages: [{ role: "user", content: prompt }],
-            });
-            const block = message.content[0];
-            if (!block || block.type !== "text")
-                return [];
-            raw = block.text.trim();
-        }
-        else {
-            // Call Gemini REST API — auth via X-goog-api-key header.
-            // Try models in order until one succeeds.
-            const GEMINI_MODELS = ["gemini-flash-latest", "gemini-2.0-flash", "gemini-2.0-flash-lite"];
-            raw = "";
-            for (const modelName of GEMINI_MODELS) {
-                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "X-goog-api-key": process.env.GEMINI_API_KEY,
-                    },
-                    body: JSON.stringify({
-                        contents: [{ role: "user", parts: [{ text: prompt }] }],
-                        generationConfig: { maxOutputTokens: 2048 },
-                    }),
-                });
-                if (!res.ok)
-                    continue;
-                const data = await res.json();
-                raw = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "";
-                if (raw)
-                    break;
-            }
-            if (!raw)
-                return [];
-        }
+        const client = new sdk_1.default();
+        const message = await client.messages.create({
+            model: "claude-haiku-4-5",
+            max_tokens: 1024,
+            messages: [{ role: "user", content: prompt }],
+        });
+        const block = message.content[0];
+        if (!block || block.type !== "text")
+            return [];
+        const raw = block.text.trim();
         const json = raw.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
         return JSON.parse(json);
     }

@@ -51,7 +51,7 @@ For passing policies not in `violations`, infer from the absence of a violation 
 
 ```
 X of Y checks passing  ·  Z error(s)  ·  W warning(s)
-Run /rn-compliance:compliance-scan to fix violations.
+Run /rn-compliance-analyst:compliance-scan to fix violations.
 ```
 
 If everything passes:

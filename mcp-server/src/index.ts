@@ -15,7 +15,7 @@ import { getPolicyInfo }             from "./tools/policy-info";
 import { getCacheStatus }            from "./tools/cache-status";
 
 const server = new Server(
-  { name: "claude-rn-compliance", version: "1.0.0" },
+  { name: "rn-compliance-analyst", version: "1.0.0" },
   { capabilities: { tools: {} } }
 );
 
@@ -235,7 +235,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("claude-rn-compliance MCP server running on stdio");
+  console.error("rn-compliance-analyst MCP server running on stdio");
 }
 
 main().catch((err) => {

@@ -1,15 +1,14 @@
 {
   "mcpServers": {
-    "rn-compliance": {
+    "rn-compliance-analyst": {
       "command": "node",
       "args": ["${CLAUDE_PLUGIN_ROOT}/mcp-server/dist/index.js"],
       "env": {
         "NODE_PATH": "${CLAUDE_PLUGIN_ROOT}/mcp-server/node_modules",
         "POLICIES_DIR": "${CLAUDE_PLUGIN_ROOT}/mcp-server/policies",
         "PLUGIN_CACHE_DIR": "${CLAUDE_PLUGIN_DATA}/policy-cache",
-        "POLICIES_REMOTE_URL": "https://raw.githubusercontent.com/Shamique99x/claude-rn-compliance/main/mcp-server/policies",
-        "ANTHROPIC_API_KEY": "${user_config.anthropic_api_key}",
-        "GEMINI_API_KEY": "${user_config.gemini_api_key}"
+        "POLICIES_REMOTE_URL": "https://raw.githubusercontent.com/Shamique99x/rn-compliance-analyst/main/mcp-server/policies",
+        "ANTHROPIC_API_KEY": "${user_config.anthropic_api_key}"
       }
     }
   }

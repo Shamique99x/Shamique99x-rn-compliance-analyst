@@ -37,7 +37,7 @@ exports.refreshPolicies = refreshPolicies;
 const https = __importStar(require("https"));
 const cache_1 = require("./cache");
 const DEFAULT_BASE_URL = process.env.POLICIES_REMOTE_URL ??
-    "https://raw.githubusercontent.com/99x/claude-rn-compliance/main/mcp-server/policies";
+    "https://raw.githubusercontent.com/Shamique99x/rn-compliance-analyst/main/mcp-server/policies";
 async function refreshPolicies(platforms, remoteUrl) {
     const base = remoteUrl ?? DEFAULT_BASE_URL;
     const changelog = [];

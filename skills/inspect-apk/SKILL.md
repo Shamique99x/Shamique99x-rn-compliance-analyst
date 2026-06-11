@@ -39,7 +39,7 @@ Should I build one now? (debug variant)  [y/N]
   ```
   Run this to build:
     cd android && ./gradlew assembleDebug
-  Then re-run /rn-compliance:inspect-apk
+  Then re-run /rn-compliance-analyst:inspect-apk
   ```
 
 - If **yes** → go to step 2a.
@@ -89,7 +89,7 @@ If the second build also fails → show the remaining errors and stop:
 ✗ Could not fix build errors automatically. Remaining errors:
   <error lines>
 
-Please fix these manually, then re-run /rn-compliance:inspect-apk.
+Please fix these manually, then re-run /rn-compliance-analyst:inspect-apk.
 ```
 
 ### 2b. Handle other errors
@@ -174,7 +174,7 @@ Running: npm install react-native@0.74.0 react-native-vision-camera@4.0.0
   ✓ react-native@0.74.0
   ✓ react-native-vision-camera@4.0.0
 
-Done. Rebuild your APK and re-run /rn-compliance:inspect-apk to verify.
+Done. Rebuild your APK and re-run /rn-compliance-analyst:inspect-apk to verify.
 ```
 
 If any upgrades failed, show the error output and suggest running the command manually.

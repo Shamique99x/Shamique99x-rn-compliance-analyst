@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
-  "name": "rn-compliance",
+  "name": "rn-compliance-analyst",
   "displayName": "React Native Compliance",
   "version": "1.0.0",
   "description": "Scan and auto-fix Android/iOS app store policy violations in React Native projects",

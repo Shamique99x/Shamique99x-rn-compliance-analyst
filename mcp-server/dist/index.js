@@ -12,7 +12,7 @@ const upgrade_libs_1 = require("./tools/upgrade-libs");
 const inspect_apk_1 = require("./tools/inspect-apk");
 const policy_info_1 = require("./tools/policy-info");
 const cache_status_1 = require("./tools/cache-status");
-const server = new index_js_1.Server({ name: "claude-rn-compliance", version: "1.0.0" }, { capabilities: { tools: {} } });
+const server = new index_js_1.Server({ name: "rn-compliance-analyst", version: "1.0.0" }, { capabilities: { tools: {} } });
 server.setRequestHandler(types_js_1.ListToolsRequestSchema, async () => ({
     tools: [
         {
@@ -196,7 +196,7 @@ server.setRequestHandler(types_js_1.CallToolRequestSchema, async (request) => {
 async function main() {
     const transport = new stdio_js_1.StdioServerTransport();
     await server.connect(transport);
-    console.error("claude-rn-compliance MCP server running on stdio");
+    console.error("rn-compliance-analyst MCP server running on stdio");
 }
 main().catch((err) => {
     console.error("Fatal error:", err);

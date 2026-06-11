@@ -24,22 +24,20 @@ jobs:
         run: npm install
         working-directory: scripts/update-policies
 
-      - name: Check API keys are set
+      - name: Check API key is set
         run: |
-          if [ -z "${{ secrets.ANTHROPIC_API_KEY }}" ] && [ -z "${{ secrets.GEMINI_API_KEY }}" ]; then
-            echo "ERROR: Neither ANTHROPIC_API_KEY nor GEMINI_API_KEY secret is set."
-            echo "Add one of them in: Settings → Secrets and variables → Actions → Repository secrets"
+          if [ -z "${{ secrets.ANTHROPIC_API_KEY }}" ]; then
+            echo "ERROR: ANTHROPIC_API_KEY secret is not set."
+            echo "Add it in: Settings → Secrets and variables → Actions → Repository secrets"
             exit 1
           fi
-          [ -n "${{ secrets.ANTHROPIC_API_KEY }}" ] && echo "✓ ANTHROPIC_API_KEY is set" || echo "- ANTHROPIC_API_KEY not set"
-          [ -n "${{ secrets.GEMINI_API_KEY }}" ] && echo "✓ GEMINI_API_KEY is set" || echo "- GEMINI_API_KEY not set"
+          echo "✓ ANTHROPIC_API_KEY is set"
 
       - name: Fetch official pages and update policies
         run: npx tsx index.ts
         working-directory: scripts/update-policies
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           POLICIES_DIR: ${{ github.workspace }}/mcp-server/policies
 
       - name: Check for changes

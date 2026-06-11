@@ -1,11 +1,11 @@
 ---
 name: compliance-scan
-description: Scan a React Native project for Android/iOS app store policy violations and optionally auto-fix them. Use when the user runs /rn-compliance:compliance-scan or asks to check app store compliance, policy violations, targetSdk, page size alignment, or PrivacyInfo requirements.
+description: Scan a React Native project for Android/iOS app store policy violations and optionally auto-fix them. Use when the user runs /rn-compliance-analyst:compliance-scan or asks to check app store compliance, policy violations, targetSdk, page size alignment, or PrivacyInfo requirements.
 ---
 
 # compliance-scan — React Native Policy Compliance Agent
 
-Use this skill when the user runs `/rn-compliance:compliance-scan` (optionally with `android`, `ios`, or `--refresh` arguments).
+Use this skill when the user runs `/rn-compliance-analyst:compliance-scan` (optionally with `android`, `ios`, or `--refresh` arguments).
 
 ## What this skill does
 
@@ -32,7 +32,7 @@ Call `compliance_refresh_policies`. Report the result:
 ### 2b. Check if cache is stale
 
 Call `compliance_cache_status`. If either platform shows `stale: true`:
-> Policy database for [platform] is more than 24 hours old. Run `/rn-compliance:compliance-scan --refresh` to fetch the latest rules before scanning.
+> Policy database for [platform] is more than 24 hours old. Run `/rn-compliance-analyst:compliance-scan --refresh` to fetch the latest rules before scanning.
 
 Continue without blocking — stale cache still uses bundled policies.
 

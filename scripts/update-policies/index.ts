@@ -59,7 +59,7 @@ async function fetchUrl(url: string, redirectsLeft = 5): Promise<string> {
       url,
       {
         headers: {
-          "User-Agent": "Mozilla/5.0 (compatible; rn-compliance-policy-updater/1.0)",
+          "User-Agent": "Mozilla/5.0 (compatible; rn-compliance-analyst-policy-updater/1.0)",
           Accept: "text/html,application/xhtml+xml",
         },
       },
