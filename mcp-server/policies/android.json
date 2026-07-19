@@ -71,13 +71,13 @@
             "type": "gradle_int_property",
             "file": "android/app/build.gradle",
             "property": "targetSdkVersion",
-            "min_value": 35
+            "min_value": 36
           },
           {
             "type": "gradle_int_property",
             "file": "android/app/build.gradle",
             "property": "compileSdkVersion",
-            "min_value": 35
+            "min_value": 36
           }
         ]
       },
@@ -88,13 +88,13 @@
             "type": "gradle_int_property_set",
             "file": "android/app/build.gradle",
             "property": "targetSdkVersion",
-            "value": 35
+            "value": 36
           },
           {
             "type": "gradle_int_property_set",
             "file": "android/app/build.gradle",
             "property": "compileSdkVersion",
-            "value": 35
+            "value": 36
           }
         ]
       },
