@@ -1,6 +1,6 @@
 ---
 name: status
-description: Quick pass/fail compliance status for a React Native project. Use when the user wants a fast health check without fix prompts. Shows one line per policy.
+description: Quick pass/fail compliance health check for a React Native project. Shows one line per policy, no fix prompts.
 ---
 
 # status — Quick Compliance Health Check
@@ -9,52 +9,49 @@ Show a compact pass/fail summary. No fix prompts, no confirmation steps.
 
 ## Arguments
 
-`$ARGUMENTS` may optionally be `android` or `ios` to limit to one platform.
+`$ARGUMENTS` may optionally contain `android` or `ios` to limit to one platform.
 
 ## Steps
 
-### 1. Scan
+### 1. Determine scope
 
-Call `compliance_scan` with:
 - `projectPath`: current working directory
-- `platforms`: `["android"]` if argument is "android", `["ios"]` if "ios", otherwise both
+- `platforms`: `["android"]` if "android" in args, `["ios"]` if "ios" in args, else both
 
-### 2. Display compact table
+### 2. Run compliance checks
 
-Print a header line:
+Run the same checks as the `compliance-scan` skill (steps 3 and 4) but do **not** apply any fixes and do **not** prompt the user.
+
+Detect project type from `package.json` (react-native / unknown).
+
+### 3. Display compact table
 
 ```
 React Native Compliance Status
-Policies version: <policies_version>
-APK inspection:   not included — run /inspect-apk for deep binary checks
-```
+Project type: <react-native | unknown>
 
-Then one line per policy, grouped by platform. Show every policy from the scan — both passing and failing:
-
-```
 Android
   ✓  Target & Compile SDK Version
   ✓  Android Gradle Plugin Version
-  ✗  16 KB Page Size Alignment         [ERROR]  android/gradle.properties
-  ✗  16 KB Page Size — APK Verification [ERROR]  arm64-v8a/libreanimated.so
+  ✓  Gradle Wrapper Version
+  ✗  16 KB Page Size Alignment              [ERROR]   android/gradle.properties
+  ✗  Android Gradle Plugin Version          [WARN]    android/build.gradle → 8.3.0 < 8.5.1
 
 iOS
   ✓  Privacy Manifest File
   ✓  Required Reason APIs Declaration
-  ✗  Minimum iOS Deployment Target     [ERROR]  ios/Podfile
+  ✗  Minimum iOS Deployment Target         [ERROR]   ios/Podfile → 13.0 < 15.1
   ✓  Xcode Version Requirement
 ```
 
-For passing policies not in `violations`, infer from the absence of a violation with that `policy_id`.
-
-### 3. Summary line
+### 4. Summary line
 
 ```
 X of Y checks passing  ·  Z error(s)  ·  W warning(s)
-Run /rn-compliance-analyst:compliance-scan to fix violations.
+Run /compliance-scan to fix violations.
 ```
 
 If everything passes:
 ```
-✓  All X checks passing. No violations found.
+✓ All X checks passing. Project is compliant.
 ```

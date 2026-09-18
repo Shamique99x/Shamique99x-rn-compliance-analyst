@@ -1,190 +1,129 @@
 ---
 name: inspect-apk
-description: Inspect a built APK's native libraries for 16 KB page-size compliance. Checks ELF alignment and compression of every .so file. Use when the user wants to inspect a specific APK or verify a build before submission.
+description: >
+  Deep binary inspection of a built APK — checks every native .so library for 16 KB
+  page-size alignment (PT_LOAD p_align). Use after running a compliance scan to verify
+  the built artifact, not just the build config.
 ---
 
-# inspect-apk — APK Native Library Inspector
+# inspect-apk
 
-Inspect every `.so` file inside an APK for 16 KB page-size compliance without running a full project scan.
+Inspect every native `.so` file in a built APK for 16 KB page-size alignment.
 
-## Arguments (`$ARGUMENTS`)
+## Arguments
 
-| Value | Behaviour |
-|---|---|
-| _(empty)_ | Auto-discover APK in `android/app/build/outputs/apk/` |
-| `release` | Look specifically for a release APK |
-| `debug` | Look specifically for a debug APK |
-| `/path/to/app.apk` | Inspect that exact file |
+`$ARGUMENTS` may contain:
+- A path to a specific APK file
+- A project root path (auto-discovers APK under `android/app/build/outputs/apk/`)
+- Nothing (auto-discovers under current working directory)
+
+## Prerequisites
+
+Requires `readelf` or `objdump` (part of `binutils`). If neither is available, report the limitation and stop.
+
+---
 
 ## Steps
 
-### 1. Resolve APK path
+### 1. Locate the APK
 
-Call `compliance_inspect_apk` with:
-- `projectPath`: current working directory
-- `apkPath`: the value of `$ARGUMENTS` if it looks like a file path (starts with `/`, `./`, `C:\`, or ends with `.apk`), otherwise pass `variant` = `$ARGUMENTS` (e.g. "release" or "debug")
+If an explicit `.apk` path is in `$ARGUMENTS`, use it.
 
-### 2. Handle missing APK — offer to build
+Otherwise, use Glob to find APKs under:
+- `android/app/build/outputs/apk/release/*.apk`
+- `android/app/build/outputs/apk/debug/*.apk`
 
-If `error` is set in the result and the error message contains "No APK found" or "no APK" (case-insensitive):
-
-Ask the user:
+Prefer release over debug. If multiple found, show a list and ask the user to pick.
+If none found, tell the user to build first:
 ```
-No APK found in android/app/build/outputs/apk/.
-
-Should I build one now? (debug variant)  [y/N]
+No APK found. Run:
+  cd android && ./gradlew assembleRelease
 ```
+and stop.
 
-- If **no** → print the manual command and stop:
-  ```
-  Run this to build:
-    cd android && ./gradlew assembleDebug
-  Then re-run /rn-compliance-analyst:inspect-apk
-  ```
+### 2. Check tool availability
 
-- If **yes** → go to step 2a.
-
-### 2a. Build the APK
-
-Run the build command using Bash:
+Run:
 ```bash
-cd android && ./gradlew assembleDebug 2>&1
+command -v readelf || command -v objdump
 ```
-
-Stream / capture the full output.
-
-**If the build succeeds** (exit code 0):
+If neither exists, output:
 ```
-✓ APK built successfully.
+⚠ readelf/objdump not available. Install binutils:
+  macOS:  brew install binutils
+  Linux:  apt-get install binutils  (or equivalent)
 ```
-Then retry `compliance_inspect_apk` with the same arguments and continue from step 3.
+and stop.
 
-**If the build fails** (non-zero exit code):
+### 3. Extract native libraries
 
-Parse the Gradle output for error lines (lines containing `error:`, `FAILED`, `Exception`, or `> Task`). Then:
-
-```
-✗ Build failed. Analysing errors...
-```
-
-Attempt to fix each error automatically:
-
-| Error pattern | Automatic fix |
-|---|---|
-| `compileSdkVersion` / `targetSdkVersion` too low | Call `compliance_fix` with `["android-target-sdk"]` |
-| `Minimum supported Gradle version` | Call `compliance_fix` with `["android-gradle-wrapper"]` |
-| AGP version incompatible | Call `compliance_fix` with `["android-agp-version"]` |
-| Missing `namespace` in module | Add `namespace "com.yourapp"` to the affected `build.gradle` |
-| Dependency resolution failure | Run `cd android && ./gradlew --refresh-dependencies assembleDebug` |
-| Any other error | Show the error and ask the user if they want to proceed manually |
-
-After applying fixes, re-run the build:
 ```bash
-cd android && ./gradlew assembleDebug 2>&1
+TMPDIR=$(mktemp -d)
+unzip -o "$APK_PATH" "lib/arm64-v8a/*.so" "lib/armeabi-v7a/*.so" "lib/x86_64/*.so" -d "$TMPDIR" 2>/dev/null
 ```
 
-If the second build succeeds → continue from step 3 with the new APK.
-If the second build also fails → show the remaining errors and stop:
-```
-✗ Could not fix build errors automatically. Remaining errors:
-  <error lines>
+If no `.so` files extracted, report "No native libraries found in APK — no binary checks required."
 
-Please fix these manually, then re-run /rn-compliance-analyst:inspect-apk.
-```
+### 4. Check each .so for 16 KB alignment
 
-### 2b. Handle other errors
+For each extracted `.so` file, run:
 
-If `error` is set for any reason other than missing APK:
-```
-✗ Could not inspect APK: <error>
-```
-Stop here.
-
-### 3. Display results
-
-Print a header:
-```
-APK Inspection: <apk_path>
-Libraries checked: <libraries_checked>
+**Using readelf (preferred):**
+```bash
+readelf -l "$SO_FILE" 2>/dev/null | grep -E "LOAD|p_align"
 ```
 
-Then group by ABI and list every library with its status:
-
-```
-arm64-v8a  (<N> libraries)
-  ✓  libhermes.so          aligned=0x4000  stored
-  ✓  libfbjni.so           aligned=0x4000  stored
-  ✗  libreanimated.so      aligned=0x1000  stored   ← PT_LOAD alignment too low
-  ✗  liblegacybridge.so    aligned=0x4000  compressed ← must be stored uncompressed
-
-armeabi-v7a  (<N> libraries)
-  ✓  libhermes.so          aligned=0x1000  stored   (32-bit: 4 KB is acceptable)
+**Using objdump (fallback):**
+```bash
+objdump -p "$SO_FILE" 2>/dev/null | grep -i "align"
 ```
 
-Note: for 32-bit ABI (armeabi-v7a), 4 KB alignment is acceptable — the 16 KB requirement only applies to 64-bit (arm64-v8a) libraries.
+A PT_LOAD segment is **16 KB compliant** if `p_align = 0x4000` (16384).
+A PT_LOAD segment is **4 KB only** if `p_align = 0x1000` (4096).
 
-### 4. Show upgrade suggestions
+Record: library name, ABI, alignment value, pass/fail.
 
-If `upgrades` is non-empty, list them with confidence annotations:
+### 5. Identify npm packages for failing libraries
 
-```
-Upgrade suggestions (<N> packages)
-  • react-native              0.73.6 → 0.74.0+   (confirmed)
-    Triggered by: arm64-v8a/libhermes.so
-  • react-native-vision-camera  3.x  → 4.0.0+   ⚠️ community-reported
-    Triggered by: arm64-v8a/libVisionCamera.so
-  🤖 expo-av  13.6.0 → 13.10.0+ — AI-identified
-  ❓ libcustom.so — unknown package, check with maintainer
-```
+For failing `.so` files, attempt to map to their npm package. Common patterns:
+- `libreanimated.so` → `react-native-reanimated` (min compliant: 3.6.0)
+- `libhermes.so` → `react-native` (min compliant: 0.74.0)
+- `libfbjni.so` → `com.facebook.fbjni:fbjni` (Android dependency, not npm)
+- `libturbomodulejsijni.so` → `react-native` (min compliant: 0.74.0)
+- `librnscreens.so` → `react-native-screens` (min compliant: 3.30.0)
+- `libvisionreactnative.so` → `react-native-vision-camera` (min compliant: 4.0.0)
 
-### 5. Ask for confirmation before upgrading
+For unrecognised libraries, note them as "unknown — verify with library maintainer."
 
-If there are actionable upgrades (valid semver, not unknown), ask:
+### 6. Clean up
 
-```
-I can run these upgrades for you now:
-
-  • react-native@0.74.0
-  • react-native-vision-camera@4.0.0
-
-Package manager: <npm|yarn|pnpm|bun> (auto-detected from lock file)
-
-Shall I run these upgrades now? [y/N]
+```bash
+rm -rf "$TMPDIR"
 ```
 
-Wait for the user's response.
-- If **yes** → go to step 6
-- If **no** → print the manual commands and stop:
-  ```
-  To upgrade manually:
-    npm install react-native@0.74.0 react-native-vision-camera@4.0.0
-  ```
-
-### 6. Run upgrades
-
-Call `compliance_upgrade_libraries` with:
-- `projectPath`: current working directory
-- `upgrades`: array of `{ name, min_version }` for every actionable entry
-
-### 7. Report results
+### 7. Report
 
 ```
-Running: npm install react-native@0.74.0 react-native-vision-camera@4.0.0
+APK: app-release.apk
 
-  ✓ react-native@0.74.0
-  ✓ react-native-vision-camera@4.0.0
+arm64-v8a (6 libraries)
+  ✓  libhermes.so              p_align=0x4000  (16 KB)
+  ✓  libturbomodulejsijni.so   p_align=0x4000  (16 KB)
+  ✗  libreanimated.so          p_align=0x1000  (4 KB)  → upgrade react-native-reanimated ≥ 3.6.0
+  ✓  libfbjni.so               p_align=0x4000  (16 KB)
 
-Done. Rebuild your APK and re-run /rn-compliance-analyst:inspect-apk to verify.
+armeabi-v7a
+  ✓  libhermes.so              p_align=0x4000  (16 KB)
+  ✗  libreanimated.so          p_align=0x1000  (4 KB)  → upgrade react-native-reanimated ≥ 3.6.0
+
+Summary: 4 of 6 libraries compliant.
+
+Action required:
+  npm install react-native-reanimated@3.6.0  (or higher)
+  Then rebuild: cd android && ./gradlew assembleRelease
 ```
 
-If any upgrades failed, show the error output and suggest running the command manually.
-
-### 8. Summary
-
+If all libraries pass:
 ```
-✓ All libraries are 16 KB page-size compliant.
-```
-or
-```
-✗ <N> non-compliant librar(y/ies) found.
+✓ All X native libraries are 16 KB page-size compliant.
 ```

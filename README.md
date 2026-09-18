@@ -1,6 +1,7 @@
-# React Native Compliance — Claude Code Plugin
+# React Native / Capacitor Compliance — Claude Code Plugin
 
-Scan and auto-fix Android/iOS App Store policy violations directly from Claude Code.
+Scan and auto-fix Android/iOS app store policy violations directly from Claude Code.
+Works with React Native and Capacitor projects. No external servers or build steps required.
 
 ## What it checks
 
@@ -10,6 +11,7 @@ Scan and auto-fix Android/iOS App Store policy violations directly from Claude C
 | Android | targetSdkVersion / compileSdkVersion ≥ 35 | Yes |
 | Android | Android Gradle Plugin ≥ 8.5.1 | Yes |
 | Android | Gradle wrapper ≥ 8.6 | Yes |
+| Android | Capacitor SDK ↔ targetSdk compatibility | No (manual upgrade) |
 | iOS | PrivacyInfo.xcprivacy exists | Yes |
 | iOS | Required Reason APIs declared in privacy manifest | Yes |
 | iOS | Minimum deployment target ≥ iOS 15.1 | Yes |
@@ -19,129 +21,68 @@ Scan and auto-fix Android/iOS App Store policy violations directly from Claude C
 
 ## Installation
 
-### 1. Clone the repo
+```bash
+claude plugin install https://github.com/Shamique99x/rn-compliance-analyst
+```
+
+Or from a local clone:
 
 ```bash
 git clone https://github.com/Shamique99x/rn-compliance-analyst
+claude plugin install ./rn-compliance-analyst
 ```
-
-### 2. Install dependencies
-
-```bash
-cd rn-compliance-analyst/mcp-server
-npm install
-```
-
-The compiled `dist/` is already included — no build step needed.
-
-### 3. Register with Claude Code
-
-**Project-scoped** (recommended — only active inside one project):
-
-```bash
-cd /path/to/your-rn-project
-claude mcp add --scope project rn-compliance node "/absolute/path/to/rn-compliance-analyst/mcp-server/dist/index.js" --env POLICIES_DIR="/absolute/path/to/rn-compliance-analyst/mcp-server/policies"
-```
-
-**Global** (active in all projects):
-
-```bash
-claude mcp add rn-compliance node "/absolute/path/to/rn-compliance-analyst/mcp-server/dist/index.js" --env POLICIES_DIR="/absolute/path/to/rn-compliance-analyst/mcp-server/policies"
-```
-
-### 4. Verify
-
-Open a Claude Code chat inside your project and run:
-
-```
-/mcp
-```
-
-You should see `rn-compliance-analyst` listed as connected.
 
 ---
 
-## Available tools
+## Commands
 
-| Tool | Description |
-|------|-------------|
-| `compliance_scan` | Scan the project for Android/iOS policy violations |
-| `compliance_fix` | Fix specific violations by ID (creates `.bak` backups) |
-| `compliance_fix_all` | Scan + fix all auto-fixable violations in one shot |
-| `compliance_upgrade_libraries` | Run npm/yarn/pnpm/bun to upgrade libraries to compliant versions |
-| `compliance_inspect_apk` | Inspect a built APK — checks every `.so` for 16 KB page-alignment |
-| `compliance_refresh_policies` | Pull latest policy thresholds from GitHub |
-| `compliance_cache_status` | Check if the local policy cache is stale (>24h old) |
-| `compliance_policy_info` | Show current policy versions, counts, and cache info |
-
-### Optional: Install skills (slash commands)
-
-Four skills are included for a guided conversational experience:
-
-| Skill | Command | What it does |
-|-------|---------|-------------|
-| `compliance-scan` | `/compliance-scan` | Full scan → fix → APK inspection flow |
-| `inspect-apk` | `/inspect-apk` | APK-only deep 16 KB check (offers to build if needed) |
-| `policies` | `/policies` | Show loaded policy versions and cache status |
-| `status` | `/status` | Quick pass/fail summary, no fix prompts |
-
-**Install all skills — macOS/Linux:**
-```bash
-for skill in compliance-scan inspect-apk policies status; do
-  mkdir -p ~/.claude/commands/$skill
-  cp skills/$skill/SKILL.md ~/.claude/commands/$skill/SKILL.md
-done
-```
-
-**Install all skills — Windows (PowerShell):**
-```powershell
-foreach ($skill in @("compliance-scan","inspect-apk","policies","status")) {
-  New-Item -ItemType Directory -Force "$env:USERPROFILE\.claude\commands\$skill"
-  Copy-Item "skills\$skill\SKILL.md" "$env:USERPROFILE\.claude\commands\$skill\SKILL.md"
-}
-```
+| Command | What it does |
+|---------|-------------|
+| `/compliance-scan` | Scan + auto-fix all violations |
+| `/compliance-scan android` | Android only |
+| `/compliance-scan ios` | iOS only |
+| `/compliance-scan --fix` | Scan and fix without confirmation prompt |
+| `/inspect-apk` | Deep binary check on built APK (16 KB alignment per `.so`) |
+| `/policies` | Show all active policy rules and current thresholds |
+| `/status` | Quick pass/fail summary, no fix prompts |
 
 ---
 
 ## Typical workflow
 
 ```
-# 1. Scan
-compliance_scan projectPath="/path/to/my-rn-app"
+# 1. Quick health check
+/status
 
-# 2. Fix everything auto-fixable
-compliance_fix_all projectPath="/path/to/my-rn-app"
+# 2. Full scan + fix
+/compliance-scan
 
-# 3. Upgrade libraries that need it (after reviewing suggestions)
-compliance_upgrade_libraries projectPath="/path/to/my-rn-app" upgrades=[...]
-
-# 4. Verify the built APK
-compliance_inspect_apk projectPath="/path/to/my-rn-app"
+# 3. Verify the built APK (requires readelf/objdump)
+/inspect-apk
 ```
 
 ---
 
-## Optional: AI-powered unknown library identification
+## APK binary inspection
 
-When inspecting APKs, the plugin can identify unknown native libraries using AI.
-Add the following in plugin settings (or as an env var):
+`/inspect-apk` requires `readelf` or `objdump` (part of `binutils`):
 
-| Key | Source |
-|-----|--------|
-| `ANTHROPIC_API_KEY` | console.anthropic.com |
+```bash
+# macOS
+brew install binutils
 
-If the key is not set, unrecognised libraries are flagged for manual review.
+# Linux (Debian/Ubuntu)
+apt-get install binutils
+```
 
 ---
 
 ## Policy auto-updates
 
-Policy thresholds are fetched from the official Android/iOS developer docs **every Sunday** via GitHub Actions and committed to this repo. The plugin pulls the latest from GitHub every 24 hours automatically.
+Thresholds are scraped from the official Android/iOS developer docs on the **1st of every month**
+via GitHub Actions and committed to `policies/android.json` and `policies/ios.json` in this repo.
 
-To force a refresh:
-```
-compliance_refresh_policies
-```
+The skills read the installed policy files directly — always up to date after each `git pull` or reinstall.
 
 ---
 
@@ -151,65 +92,34 @@ compliance_refresh_policies
 rn-compliance-analyst/
 ├── .claude-plugin/
 │   └── plugin.json               ← Plugin manifest
-├── .mcp.json                     ← MCP server wiring
 ├── .github/workflows/
-│   └── update-policies.yml       ← Weekly policy auto-update
-├── skills/
-│   ├── compliance-scan/SKILL.md  ← /compliance-scan skill (scan + fix + APK)
-│   ├── inspect-apk/SKILL.md      ← /inspect-apk skill (APK-only deep check)
-│   ├── policies/SKILL.md         ← /policies skill (show loaded policy versions)
-│   └── status/SKILL.md           ← /status skill (quick pass/fail summary)
-├── mcp-server/
-│   ├── dist/                     ← Compiled JS (committed)
-│   ├── src/
-│   │   ├── index.ts              ← MCP server entry point
-│   │   ├── engine/               ← JSON-driven policy engine
-│   │   │   ├── check-runner.ts   ← interprets policy `check` field at runtime
-│   │   │   └── fix-runner.ts     ← interprets policy `fix` field at runtime
-│   │   ├── tools/                ← scan, fix, upgrade, inspect-apk, policy-info
-│   │   ├── scanners/             ← custom scanners (APK ELF, privacy manifest source scan)
-│   │   ├── fixers/               ← custom fixers (privacy manifest creation/injection)
-│   │   ├── services/policy/      ← cache / loader / fetcher
-│   │   ├── registry/             ← scanner + fixer registries
-│   │   └── reporters/            ← JSON and markdown output formatters
-│   └── policies/
-│       ├── android.json          ← Android policy rules
-│       ├── ios.json              ← iOS policy rules
-│       └── native-lib-map.json   ← Known native library → npm package map
-└── scripts/
-    └── update-policies/          ← GitHub Actions policy updater script
+│   └── update-policies.yml       ← Monthly policy auto-update
+├── commands/
+│   ├── compliance-scan.md        ← /compliance-scan entry point
+│   ├── inspect-apk.md            ← /inspect-apk entry point
+│   ├── policies.md               ← /policies entry point
+│   └── status.md                 ← /status entry point
+├── hooks/
+│   ├── hooks.json                ← PreToolUse hook config
+│   └── validate-prerequisites.sh ← Checks readelf/objdump availability
+├── policies/
+│   ├── android.json              ← Android policy rules and thresholds
+│   └── ios.json                  ← iOS policy rules and thresholds
+├── scripts/
+│   └── update-policies/          ← GitHub Actions policy updater
+└── skills/
+    ├── compliance-scan/SKILL.md  ← Full scan + fix logic
+    ├── inspect-apk/SKILL.md      ← APK binary inspection logic
+    ├── policies/SKILL.md         ← Policy reference display
+    └── status/SKILL.md           ← Quick pass/fail check
 ```
+
+---
 
 ## Adding new policies
 
-The plugin uses a JSON-driven policy engine — for any policy whose `check` and `fix`
-types are already supported by the engine, **no code changes are needed**. Just update
-the JSON.
+1. Add a policy entry to `policies/android.json` or `policies/ios.json`
+2. Add the corresponding check and fix logic to `skills/compliance-scan/SKILL.md`
+3. Update the threshold table in `skills/policies/SKILL.md`
 
-### Standard policy (JSON only)
-
-1. Add the policy entry to `mcp-server/policies/android.json` or `ios.json`, including
-   `check` and `fix` fields using the supported types below
-2. Run `npm run build` inside `mcp-server/` and commit `dist/`
-
-That's it. The engine picks up the new policy automatically on the next scan.
-
-**Supported `check` types:** `composite`, `file_exists`, `file_contains`,
-`gradle_int_property`, `gradle_cmake_arg`, `gradle_classpath_version`,
-`properties_version`, `podfile_platform_version`, `pbxproj_property`,
-`xcode_version_file`, `package_json_min_version`
-
-**Supported `fix` types:** `composite`, `properties_set`, `gradle_cmake_arg_append`,
-`cmake_linker_flag`, `gradle_int_property_set`, `gradle_classpath_version_set`,
-`create_file`, `privacy_manifest_append_apis`, `podfile_platform_set`,
-`pbxproj_property_set`
-
-### Custom policy (requires code)
-
-Only needed if the check or fix logic cannot be expressed with the types above
-(e.g. source-code pattern scanning like the privacy manifest required-reason check):
-
-1. Add the policy entry to the relevant JSON file
-2. Add a scanner in `src/scanners/<platform>/` and call it from `src/tools/scan.ts`
-3. Add a fixer in `src/fixers/<platform>/` (if auto-fixable) and call it from `src/tools/fix.ts`
-4. Run `npm run build` inside `mcp-server/` and commit `dist/`
+No build step, no server restart. Changes take effect immediately.
