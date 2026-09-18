@@ -1,10 +1,10 @@
 import * as https from "https";
-import { PolicyDatabase, Platform, PolicyRefreshResult } from "../types";
+import { PolicyDatabase, Platform, PolicyRefreshResult } from "../../types";
 import { writeCache, readCache } from "./cache";
 
 const DEFAULT_BASE_URL =
   process.env.POLICIES_REMOTE_URL ??
-  "https://raw.githubusercontent.com/99x/claude-rn-compliance/main/mcp-server/policies";
+  "https://raw.githubusercontent.com/Shamique99x/rn-compliance-analyst/main/mcp-server/policies";
 
 export async function refreshPolicies(
   platforms: Platform[],

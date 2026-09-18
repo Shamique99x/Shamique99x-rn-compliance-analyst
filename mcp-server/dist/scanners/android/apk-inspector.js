@@ -60,6 +60,9 @@ const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const adm_zip_1 = __importDefault(require("adm-zip"));
 const elf_parser_1 = require("./elf-parser");
+// 32-bit ABIs use 4 KB pages by CPU architecture — the 16 KB requirement
+// only applies to 64-bit ABIs.  Never flag these as non-compliant.
+const THIRTY_TWO_BIT_ABIS = new Set(["armeabi-v7a", "armeabi", "x86", "mips"]);
 // ── APK discovery ─────────────────────────────────────────────────────────────
 const APK_CANDIDATES = [
     "android/app/build/outputs/apk/debug/app-debug.apk",
@@ -128,7 +131,9 @@ function inspectApk(apkPath) {
             const info = (0, elf_parser_1.parseElf)(data);
             if (info) {
                 load_alignment = info.minLoadAlignment;
-                if (load_alignment < elf_parser_1.PAGE_16KB) {
+                // 16 KB page-size requirement only applies to 64-bit ABIs.
+                // 32-bit ABIs (armeabi-v7a, x86, etc.) intentionally use 4 KB pages.
+                if (!THIRTY_TWO_BIT_ABIS.has(abi) && load_alignment < elf_parser_1.PAGE_16KB) {
                     issues.push(`PT_LOAD alignment is ${load_alignment} bytes ` +
                         `(0x${load_alignment.toString(16).toUpperCase()}) — ` +
                         `must be ≥ 16 384 bytes (0x4000) for 16 KB page-size devices`);

@@ -1,5 +1,5 @@
 {
-  "version": "2026-Q2",
+  "version": "2024-Q2",
   "platform": "ios",
   "policies": [
     {
@@ -166,7 +166,7 @@
           ".xcode-version",
           "ios/.xcode-version"
         ],
-        "min_version": "15.0"
+        "min_version": "15"
       },
       "fix": null,
       "library_requirements": []

@@ -8,7 +8,7 @@
 import * as fs   from "fs";
 import * as os   from "os";
 import * as path from "path";
-import { loadPolicies }  from "../policies/loader";
+import { loadPolicies }  from "../services/policy/loader";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 

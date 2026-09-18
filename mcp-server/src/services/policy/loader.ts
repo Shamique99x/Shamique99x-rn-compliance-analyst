@@ -1,9 +1,9 @@
 import * as fs from "fs";
 import * as path from "path";
-import { PolicyDatabase, Platform } from "../types";
+import { PolicyDatabase, Platform } from "../../types";
 import { readCache } from "./cache";
 
-const BUNDLED_DIR = path.join(__dirname, "../../policies");
+const BUNDLED_DIR = path.join(__dirname, "../../../policies");
 
 export function loadPolicies(platform: Platform): PolicyDatabase {
   const bundled = loadBundled(platform);

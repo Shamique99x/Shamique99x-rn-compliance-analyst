@@ -42,7 +42,7 @@ Native Library Map  (<version>)
 ### 3. Cache freshness hint
 
 If any platform shows `source: "bundled"` (never refreshed):
-> 💡 Run `/rn-compliance:compliance-scan --refresh` to fetch the latest policies from the official sources.
+> 💡 Run `/rn-compliance-analyst:compliance-scan --refresh` to fetch the latest policies from the official sources.
 
 If any platform shows `stale: true` (cache >24h old):
-> ⚠️ Policy cache is more than 24 hours old. Run `/rn-compliance:compliance-scan --refresh` to update.
+> ⚠️ Policy cache is more than 24 hours old. Run `/rn-compliance-analyst:compliance-scan --refresh` to update.

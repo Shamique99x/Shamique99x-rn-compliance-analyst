@@ -1,5 +1,5 @@
 import { Platform, PolicyRefreshResult } from "../types";
-import { refreshPolicies } from "../policies/fetcher";
+import { refreshPolicies } from "../services/policy/fetcher";
 
 export async function complianceRefreshPolicies(
   remoteUrl?: string,

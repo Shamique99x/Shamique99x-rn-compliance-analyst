@@ -1,0 +1,115 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/BUS-AS/BUS-Apps-Compliance/schemas/policy.schema.json",
+  "title": "PolicyDatabase",
+  "description": "Schema for Android/iOS compliance policy database files (android.json, ios.json).",
+  "type": "object",
+  "required": ["version", "platform", "policies"],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Semantic version or calendar-based label for the policy set, e.g. '2026-Q2'.",
+      "examples": ["2026-Q2", "1.0.0"]
+    },
+    "platform": {
+      "type": "string",
+      "enum": ["android", "ios"],
+      "description": "Target mobile platform for this policy database."
+    },
+    "policies": {
+      "type": "array",
+      "description": "List of compliance policies.",
+      "items": { "$ref": "#/definitions/Policy" }
+    }
+  },
+  "definitions": {
+    "Policy": {
+      "type": "object",
+      "required": ["id", "name", "platform", "severity", "auto_fixable", "description", "docs_url", "check", "fix", "library_requirements"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique policy identifier, e.g. 'android-16kb-page-size'.",
+          "pattern": "^[a-z][a-z0-9-]+$"
+        },
+        "name": { "type": "string", "description": "Human-readable policy name." },
+        "platform": { "type": "string", "enum": ["android", "ios"] },
+        "severity": { "type": "string", "enum": ["error", "warning", "info"] },
+        "auto_fixable": { "type": "boolean", "description": "Whether this violation can be auto-fixed." },
+        "description": { "type": "string", "description": "Why this policy matters." },
+        "docs_url": { "type": "string", "format": "uri", "description": "Link to official documentation." },
+        "check": { "$ref": "#/definitions/PolicyCheck" },
+        "fix": {
+          "oneOf": [
+            { "$ref": "#/definitions/PolicyFix" },
+            { "type": "null" }
+          ],
+          "description": "How to fix the violation, or null if not auto-fixable."
+        },
+        "library_requirements": {
+          "type": "array",
+          "description": "npm packages that must meet a minimum version.",
+          "items": { "$ref": "#/definitions/LibraryRequirement" }
+        }
+      }
+    },
+    "PolicyCheck": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "composite",
+            "file_exists",
+            "file_contains",
+            "gradle_int_property",
+            "gradle_cmake_arg",
+            "gradle_classpath_version",
+            "properties_version",
+            "podfile_platform_version",
+            "pbxproj_property",
+            "xcode_version_file",
+            "package_json_min_version",
+            "privacy_required_reason_apis"
+          ]
+        }
+      },
+      "additionalProperties": true
+    },
+    "PolicyFix": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "composite",
+            "properties_set",
+            "gradle_cmake_arg_append",
+            "cmake_linker_flag",
+            "gradle_int_property_set",
+            "gradle_classpath_version_set",
+            "create_file",
+            "privacy_manifest_append_apis",
+            "podfile_platform_set",
+            "pbxproj_property_set"
+          ]
+        }
+      },
+      "additionalProperties": true
+    },
+    "LibraryRequirement": {
+      "type": "object",
+      "required": ["name", "min_version", "reason"],
+      "additionalProperties": false,
+      "properties": {
+        "name":        { "type": "string", "description": "npm package name." },
+        "min_version": { "type": "string", "description": "Minimum compliant semver, e.g. '0.74.0'." },
+        "reason":      { "type": "string", "description": "Why this version is required." }
+      }
+    }
+  }
+}

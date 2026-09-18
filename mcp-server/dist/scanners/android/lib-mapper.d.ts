@@ -10,9 +10,7 @@
  *    Fast, offline, zero API cost.
  *
  * 2. Claude fallback — any .so not matched by the static map is sent to
- *    claude-haiku in a single batch call.  Claude draws on its training data
- *    about the React Native ecosystem to identify the npm package and the
- *    minimum version that ships 16 KB-aligned binaries.  Results are marked
+ *    claude-haiku in a single batch call.  Results are marked
  *    confidence="ai-identified" so developers know to verify.
  *    Requires ANTHROPIC_API_KEY.  Skipped gracefully if the key is absent.
  */
